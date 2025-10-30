@@ -901,7 +901,7 @@ public class TransactionReportController {
 
             // Generate Excel file
             ByteArrayInputStream excelStream = transactionReportService
-                    .exportAllMerchantTransactionsToExcel(request, includeTaxes, userRole);
+                    .exportAllMerchantTransactionsToExcel(request, includeTaxes, userRole,merchantType);
 
             InputStreamResource resource = new InputStreamResource(excelStream);
 

@@ -478,7 +478,7 @@ public class TransactionReportService {
      */
     @Transactional(readOnly = true)
     public ByteArrayInputStream exportAllMerchantTransactionsToExcel(
-            TransactionReportRequest request, Boolean includeTaxes, String userRole) {
+            TransactionReportRequest request, Boolean includeTaxes, String userRole,String merchantType) {
 
         logger.info("Exporting all merchant transactions to Excel with streaming...");
         validateReportRequest(request);
@@ -490,7 +490,7 @@ public class TransactionReportService {
 
             // Create header row
             Row headerRow = sheet.createRow(0);
-            createMerchantExcelHeader(headerRow, includeTaxes, userRole);
+            createMerchantExcelHeader(headerRow, includeTaxes, userRole, merchantType);
 
             // Stream data and write to Excel
             AtomicInteger rowNum = new AtomicInteger(1);
@@ -667,7 +667,7 @@ public class TransactionReportService {
     /**
      * Create header for merchant Excel export
      */
-    private void createMerchantExcelHeader(Row headerRow, Boolean includeTaxes, String userRole) {
+    private void createMerchantExcelHeader(Row headerRow, Boolean includeTaxes, String userRole, String merchantType) {
         int colNum = 0;
 
         // Common headers
@@ -681,11 +681,13 @@ public class TransactionReportService {
         headerRow.createCell(colNum++).setCellValue("TID");
         headerRow.createCell(colNum++).setCellValue("Net Amount");
         headerRow.createCell(colNum++).setCellValue("System Fee");
+        headerRow.createCell(colNum++).setCellValue("Settlement Rate");
+        headerRow.createCell(colNum++).setCellValue("Merchant Rate");
         headerRow.createCell(colNum++).setCellValue("Merchant Name");
         headerRow.createCell(colNum++).setCellValue("Status");
 
         // Franchise info (not for merchants)
-        if (!isMerchantRole(userRole)) {
+        if (Objects.equals(merchantType, "FRANCHISE")) {
             headerRow.createCell(colNum++).setCellValue("Franchise Name");
         }
 
@@ -720,6 +722,9 @@ public class TransactionReportService {
         headerRow.createCell(colNum++).setCellValue("Merchant Net Amount");
         headerRow.createCell(colNum++).setCellValue("System Fee");
         headerRow.createCell(colNum++).setCellValue("Franchise Commission");
+        headerRow.createCell(colNum++).setCellValue("Settlement Rate");
+        headerRow.createCell(colNum++).setCellValue("Merchant Rate");
+        headerRow.createCell(colNum++).setCellValue("Franchise Rate");
         headerRow.createCell(colNum++).setCellValue("Merchant Name");
         headerRow.createCell(colNum++).setCellValue("Franchise Name");
         headerRow.createCell(colNum++).setCellValue("Status");
@@ -756,11 +761,13 @@ public class TransactionReportService {
         row.createCell(colNum++).setCellValue(dto.getTid() != null ? dto.getTid() : "");
         row.createCell(colNum++).setCellValue(dto.getSettleAmount() != null ? dto.getSettleAmount().doubleValue() : 0.0);
         row.createCell(colNum++).setCellValue(dto.getSystemFee() != null ? dto.getSystemFee().doubleValue() : 0.0);
+        row.createCell(colNum++).setCellValue(dto.getSettlementPercentage() != null ? dto.getSettlementPercentage().doubleValue() : 0.0);
+        row.createCell(colNum++).setCellValue(dto.getMerchantRate() != null ? dto.getMerchantRate().doubleValue() : 0.0);
         row.createCell(colNum++).setCellValue(dto.getMerchantName() != null ? dto.getMerchantName() : "");
         row.createCell(colNum++).setCellValue(dto.getState() != null ? dto.getState() : "");
 
-        if (!isMerchantRole(userRole)) {
-            row.createCell(colNum++).setCellValue(dto.getFranchiseName() != null ? dto.getFranchiseName() : "N/A");
+        if (dto.getFranchiseName() != null) {
+            row.createCell(colNum++).setCellValue(dto.getFranchiseName());
         }
 
         if (includeTaxes && isAdminRole(userRole)) {
@@ -793,6 +800,9 @@ public class TransactionReportService {
         row.createCell(colNum++).setCellValue(dto.getSettleAmount() != null ? dto.getSettleAmount().doubleValue() : 0.0);
         row.createCell(colNum++).setCellValue(dto.getSystemFee() != null ? dto.getSystemFee().doubleValue() : 0.0);
         row.createCell(colNum++).setCellValue(dto.getCommissionAmount() != null ? dto.getCommissionAmount().doubleValue() : 0.0);
+        row.createCell(colNum++).setCellValue(dto.getSettlementRate() != null ? dto.getSettlementRate().doubleValue() : 0.0);
+        row.createCell(colNum++).setCellValue(dto.getMerchantRate() != null ? dto.getMerchantRate().doubleValue() : 0.0);
+        row.createCell(colNum++).setCellValue(dto.getFranchiseRate() != null ? dto.getFranchiseRate().doubleValue() : 0.0);
         row.createCell(colNum++).setCellValue(dto.getMerchantName() != null ? dto.getMerchantName() : "");
         row.createCell(colNum++).setCellValue(dto.getFranchiseName() != null ? dto.getFranchiseName() : "");
         row.createCell(colNum++).setCellValue(dto.getState() != null ? dto.getState() : "");
