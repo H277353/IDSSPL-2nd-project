@@ -65,12 +65,12 @@ const CustomerOnboarding = ({
       primaryContactEmail: customerData?.contactPerson?.email || customerData?.primaryContactEmail || '',
       alternateContactMobile: customerData?.alternatePhoneNum || '',
       landlineNumber: customerData?.landlineNumber || '',
-      bankName: customerData?.bankDetails?.bankName || '',
-      accountHolderName: customerData?.bankDetails?.accountHolderName || '',
-      accountNumber: customerData?.bankDetails?.accountNumber || '',
-      ifscCode: customerData?.bankDetails?.ifsc || '',
-      branchName: customerData?.bankDetails?.branchName || '',
-      accountType: customerData?.bankDetails?.accountType || '',
+      bankName: customerData?.bankName || '',
+      accountHolderName: customerData?.accountHolderName || '',
+      accountNumber: customerData?.accountNumber || '',
+      ifscCode: customerData?.ifscCode || '',
+      branchName: customerData?.branchName || '',
+      accountType: customerData?.accountType || '',
       franchiseId: customerData?.franchiseId || ''
     } : {}
   })
@@ -386,7 +386,7 @@ const CustomerOnboarding = ({
           <DocumentsForm
             register={register}
             errors={errors}
-            existingFiles={isEditMode ? customerData?.uploadDocuments : null}
+            existingFiles={isEditMode ? customerData : null}
             onDocumentPreview={handleDocumentPreview}
             onDocumentDelete={isEditMode ? handleDocumentDelete : null}
           />

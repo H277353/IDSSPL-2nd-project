@@ -172,7 +172,6 @@ public class MerchantService {
         // Create and populate the DTO
         MerchantViewDTO dto = new MerchantViewDTO(
                 merchant.getBusinessName(),
-                merchant.getFranchise().getFranchiseName(),
                 merchant.getLegalName(),
                 merchant.getBusinessType(),
                 merchant.getGstNumber(),
