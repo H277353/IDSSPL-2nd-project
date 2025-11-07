@@ -1,6 +1,6 @@
 package com.project2.ism.DTO;
 
-import org.springframework.web.multipart.MultipartFile;
+
 
 import java.math.BigDecimal;
 

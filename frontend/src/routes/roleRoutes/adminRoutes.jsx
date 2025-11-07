@@ -1,41 +1,40 @@
-import Dashboard from '../../components/DashBoards/Dashborad.jsx'
-import CustomerOnboarding from '../../components/Forms/CustomerOnboarding/CustomerOnborading.jsx'
-import VendorListPage from '../../components/Tables/VendorTable.jsx'
-import Returns from '../../components/Forms/Return.jsx'
-import ProductList from '../../components/Tables/ProductList.jsx'
-import VendorRatesManagement from '../../components/Tables/VendorRatesTable.jsx'
-import CustomerListComponent from '../../components/Tables/CustomerList.jsx'
-import SchemeList from '../../components/Tables/SchemeList.jsx'
-import ProductAssignment from '../../components/Tables/ProductAssign_Scheme.jsx'
-import MerchantListComponent from '../../components/Tables/MerchantList.jsx'
-import VendorProductUploadForm from '../../components/Forms/FileUpload.jsx'
-import AdminApproval from '../../components/Admin/AdminApproval.jsx'
-import InventoryManagement from '../../components/Inventory/Inventory.jsx'
-import CustomerProductsList from '../../components/Tables/CustomerProducts/CustomerProductsList.jsx'
-import TransactionUpload from '../../components/Forms/FileUpload.jsx'
-import TransactionSelectionForm from '../../components/Forms/ChargeCalculation.jsx'
-import SettlementBatchStatusMonitor from '../../components/Tables/SettlementBatchStatusMonitor.jsx'
-import ProductOutward from '../../components/Tables/ProductOutward.jsx'
-import MainReportsPageForNow from '../../components/Reports/MainReportsPageForNow.jsx'
-import AdminRolesDashboard from '../../components/Admin/AdminRolesDashboard.jsx'
-import BusinessLogs from '../../components/Admin/BusinessLogs.jsx'
-import WalletAdjustment from '../../components/Admin/WalletAdjustment.jsx'
-import ProductDistributionList from '../../components/Tables/ProductDistributionList.jsx'
-import FranchiseReports from '../../components/Reports/FranchiseReports.jsx'
-import VendorReports from '../../components/Reports/VendorReports.jsx'
-import MerchantTransactionReports from '../../components/Reports/MerchantTransReport/MerchantTransactionReports.jsx'
-import FranchiseTransactionReport from '../../components/Reports/FranhiseTransReports/FranchiseTransactionReports.jsx'
-import InwardTransactionReport from '../../components/Reports/InwardTransactionReports.jsx'
-import OutwardTransactionReport from '../../components/Reports/OutwardTransactionReports.jsx'
-import ReturnTransactionReport from '../../components/Reports/ReturnTransactionReports.jsx'
-import ProductReport from '../../components/Reports/productReports/ProductReport.jsx'
-import MTransReportDashboard from '../../components/Reports/MerchantTransReport/MTransReportDashboard.jsx'
-import FTransReportDashboard from '../../components/Reports/FranhiseTransReports/FTransReportDashboard.jsx'
-import MerchantReports from '../../components/Reports/MerchantReports.jsx'
-import AuditHistoryComponent from '../../components/Admin/AuditHistoryComponent.jsx'
-import StockReport from '../../components/Reports/StockReport.jsx'
-import TaxesManagement from '../../components/Admin/TaxesManagement.jsx'
-import AdminSupportTickets from '../../components/Admin/AdminSupportTickets.jsx'
+import { lazy } from 'react';
+
+const Dashboard = lazy(() => import('../../components/DashBoards/Dashborad.jsx'));
+const CustomerOnboarding = lazy(() => import('../../components/Forms/CustomerOnboarding/CustomerOnborading.jsx'));
+const VendorListPage = lazy(() => import('../../components/Tables/VendorTable.jsx'));
+const Returns = lazy(() => import('../../components/Forms/Return.jsx'));
+const ProductList = lazy(() => import('../../components/Tables/ProductList.jsx'));
+const VendorRatesManagement = lazy(() => import('../../components/Tables/VendorRatesTable.jsx'));
+const CustomerListComponent = lazy(() => import('../../components/Tables/CustomerList.jsx'));
+const SchemeList = lazy(() => import('../../components/Tables/SchemeList.jsx'));
+const ProductAssignment = lazy(() => import('../../components/Tables/ProductAssign_Scheme.jsx'));
+const MerchantListComponent = lazy(() => import('../../components/Tables/MerchantList.jsx'));
+const AdminApproval = lazy(() => import('../../components/Admin/AdminApproval.jsx'));
+const InventoryManagement = lazy(() => import('../../components/Inventory/Inventory.jsx'));
+const CustomerProductsList = lazy(() => import('../../components/Tables/CustomerProducts/CustomerProductsList.jsx'));
+const TransactionUpload = lazy(() => import('../../components/Forms/FileUpload.jsx'));
+const TransactionSelectionForm = lazy(() => import('../../components/Forms/ChargeCalculation.jsx'));
+const SettlementBatchStatusMonitor = lazy(() => import('../../components/Tables/SettlementBatchStatusMonitor.jsx'));
+const ProductOutward = lazy(() => import('../../components/Tables/ProductOutward.jsx'));
+const AdminRolesDashboard = lazy(() => import('../../components/Admin/AdminRolesDashboard.jsx'));
+const BusinessLogs = lazy(() => import('../../components/Admin/BusinessLogs.jsx'));
+const WalletAdjustment = lazy(() => import('../../components/Admin/WalletAdjustment.jsx'));
+const ProductDistributionList = lazy(() => import('../../components/Tables/ProductDistributionList.jsx'));
+const FranchiseReports = lazy(() => import('../../components/Reports/FranchiseReports.jsx'));
+const VendorReports = lazy(() => import('../../components/Reports/VendorReports.jsx'));
+const InwardTransactionReport = lazy(() => import('../../components/Reports/InwardTransactionReports.jsx'));
+const OutwardTransactionReport = lazy(() => import('../../components/Reports/OutwardTransactionReports.jsx'));
+const ReturnTransactionReport = lazy(() => import('../../components/Reports/ReturnTransactionReports.jsx'));
+const ProductReport = lazy(() => import('../../components/Reports/productReports/ProductReport.jsx'));
+const MTransReportDashboard = lazy(() => import('../../components/Reports/MerchantTransReport/MTransReportDashboard.jsx'));
+const FTransReportDashboard = lazy(() => import('../../components/Reports/FranhiseTransReports/FTransReportDashboard.jsx'));
+const MerchantReports = lazy(() => import('../../components/Reports/MerchantReports.jsx'));
+const AuditHistoryComponent = lazy(() => import('../../components/Admin/AuditHistoryComponent.jsx'));
+const StockReport = lazy(() => import('../../components/Reports/StockReport.jsx'));
+const TaxesManagement = lazy(() => import('../../components/Admin/TaxesManagement.jsx'));
+const AdminSupportTickets = lazy(() => import('../../components/Admin/AdminSupportTickets.jsx'));
+
 
 
 export const adminRoutes = [

@@ -1,12 +1,15 @@
-import Dashboard from '../../components/DashBoards/Dashborad.jsx'
-import CustomerProductsList from '../../components/Tables/CustomerProducts/CustomerProductsList.jsx'
-import ProductOutward from '../../components/Tables/ProductOutward.jsx'
-import MainReportsPageForNow from '../../components/Reports/MainReportsPageForNow.jsx'
-import Payout from '../../components/Payout/Payout.jsx'
-import CreditCardBillPayment from '../../components/Payout/CreditCardBillPayment.jsx'
-import MTransReportDashboard from '../../components/Reports/MerchantTransReport/MTransReportDashboard.jsx'
-import ViewProfile from '../../components/layout/ViewProfile.jsx'
-import SupportTickets from '../../components/Tables/SupportTicket.jsx'
+import { lazy } from 'react';
+
+const Dashboard = lazy(() => import('../../components/DashBoards/Dashborad.jsx'));
+const CustomerProductsList = lazy(() => import('../../components/Tables/CustomerProducts/CustomerProductsList.jsx'));
+const ProductOutward = lazy(() => import('../../components/Tables/ProductOutward.jsx'));
+const MainReportsPageForNow = lazy(() => import('../../components/Reports/MainReportsPageForNow.jsx'));
+const Payout = lazy(() => import('../../components/Payout/Payout.jsx'));
+const CreditCardBillPayment = lazy(() => import('../../components/Payout/CreditCardBillPayment.jsx'));
+const MTransReportDashboard = lazy(() => import('../../components/Reports/MerchantTransReport/MTransReportDashboard.jsx'));
+const ViewProfile = lazy(() => import('../../components/layout/ViewProfile.jsx'));
+const SupportTickets = lazy(() => import('../../components/Tables/SupportTicket.jsx'));
+
 
 export const merchantRoutes = [
   {

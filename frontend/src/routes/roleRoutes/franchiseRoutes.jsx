@@ -1,15 +1,16 @@
-import Dashboard from '../../components/DashBoards/Dashborad.jsx'
-import MerchantListComponent from '../../components/Tables/MerchantList.jsx'
-import CustomerProductsList from '../../components/Tables/CustomerProducts/CustomerProductsList.jsx'
-import ProductOutward from '../../components/Tables/ProductOutward.jsx'
-import ProductDistributionList from '../../components/Tables/ProductDistributionList.jsx'
-import MainReportsPageForNow from '../../components/Reports/MainReportsPageForNow.jsx'
-import MTransReportDashboard from '../../components/Reports/MerchantTransReport/MTransReportDashboard.jsx'
-import FTransReportDashboard from '../../components/Reports/FranhiseTransReports/FTransReportDashboard.jsx'
-import Payout from '../../components/Payout/Payout.jsx'
-import ViewProfile from '../../components/layout/ViewProfile.jsx'
+import { lazy } from 'react';
 
-import SupportTickets from '../../components/Tables/SupportTicket.jsx'
+const Dashboard = lazy(() => import('../../components/DashBoards/Dashborad.jsx'));
+const MerchantListComponent = lazy(() => import('../../components/Tables/MerchantList.jsx'));
+const CustomerProductsList = lazy(() => import('../../components/Tables/CustomerProducts/CustomerProductsList.jsx'));
+const ProductOutward = lazy(() => import('../../components/Tables/ProductOutward.jsx'));
+const ProductDistributionList = lazy(() => import('../../components/Tables/ProductDistributionList.jsx'));
+const MTransReportDashboard = lazy(() => import('../../components/Reports/MerchantTransReport/MTransReportDashboard.jsx'));
+const FTransReportDashboard = lazy(() => import('../../components/Reports/FranhiseTransReports/FTransReportDashboard.jsx'));
+const Payout = lazy(() => import('../../components/Payout/Payout.jsx'));
+const ViewProfile = lazy(() => import('../../components/layout/ViewProfile.jsx'));
+const SupportTickets = lazy(() => import('../../components/Tables/SupportTicket.jsx'));
+
 
 
 export const franchiseRoutes = [
