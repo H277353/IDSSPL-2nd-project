@@ -5,6 +5,7 @@ package com.project2.ism.Controller;
 import com.project2.ism.DTO.MerchantFormDTO;
 import com.project2.ism.DTO.MerchantListDTO;
 
+import com.project2.ism.DTO.MerchantViewDTO;
 import com.project2.ism.Model.Users.Merchant;
 import com.project2.ism.Service.FileStorageService;
 import com.project2.ism.Service.MerchantService;
@@ -80,9 +81,9 @@ public class MerchantController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Merchant> getMerchantById(@PathVariable Long id) {
+    public ResponseEntity<MerchantViewDTO> getMerchantById(@PathVariable Long id) {
         try {
-            Merchant merchant = merchantService.getMerchantById(id);
+            MerchantViewDTO merchant = merchantService.getMerchantViewDTOById(id);
             return ResponseEntity.ok(merchant);
         } catch (Exception e) {
             return ResponseEntity.notFound().build();

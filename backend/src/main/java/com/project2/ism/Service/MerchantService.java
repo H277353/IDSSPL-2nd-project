@@ -1,9 +1,7 @@
 
 package com.project2.ism.Service;
 
-import com.project2.ism.DTO.MerchantFormDTO;
-import com.project2.ism.DTO.MerchantListDTO;
-import com.project2.ism.DTO.MerchantProductSummaryDTO;
+import com.project2.ism.DTO.*;
 import com.project2.ism.Exception.ResourceNotFoundException;
 import com.project2.ism.Model.ContactPerson;
 import com.project2.ism.Model.InventoryTransactions.OutwardTransactions;
@@ -167,6 +165,42 @@ public class MerchantService {
         return merchantRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Merchant not found with ID: " + id));
     }
+
+    public MerchantViewDTO getMerchantViewDTOById(Long id) {
+        Merchant merchant = getMerchantById(id);
+
+        // Create and populate the DTO
+        MerchantViewDTO dto = new MerchantViewDTO(
+                merchant.getBusinessName(),
+                merchant.getFranchise().getFranchiseName(),
+                merchant.getLegalName(),
+                merchant.getBusinessType(),
+                merchant.getGstNumber(),
+                merchant.getPanNumber(),
+                merchant.getRegistrationNumber(),
+                merchant.getAddress(),
+                merchant.getContactPerson().getName(),
+                merchant.getContactPerson().getPhoneNumber(),
+                merchant.getContactPerson().getAlternatePhoneNum(),
+                merchant.getContactPerson().getEmail(),
+                merchant.getContactPerson().getLandlineNumber(),
+                merchant.getBankDetails().getBankName(),
+                merchant.getBankDetails().getAccountHolderName(),
+                merchant.getBankDetails().getAccountNumber(),
+                merchant.getBankDetails().getIfsc(),
+                merchant.getBankDetails().getBranchName(),
+                merchant.getBankDetails().getAccountType(),
+                merchant.getUploadDocuments().getPanProof(), // panCardDocument - MultipartFile (not stored in entity)
+                merchant.getUploadDocuments().getGstCertificateProof(), // gstCertificate - MultipartFile (not stored in entity)
+                merchant.getUploadDocuments().getAddressProof(), // addressProof - MultipartFile (not stored in entity)
+                merchant.getUploadDocuments().getBankAccountProof(), // bankProof - MultipartFile (not stored in entity)
+                merchant.getUploadDocuments().getOther1(),  // franchiseAgreement - MultipartFile (not stored in entity),
+                getWalletBalance(merchant.getId())
+        );
+
+        return dto;
+    }
+
 
     public Merchant updateMerchant(Long id, MerchantFormDTO dto) throws IOException {
         Merchant merchant = getMerchantById(id);
