@@ -45,9 +45,8 @@ public class MerchantViewDTO {
         this.franchiseName = franchiseName;
     }
 
-    public MerchantViewDTO(String businessName,String franchiseName, String legalName, String businessType, String gstNumber, String panNumber, String registrationNumber, String businessAddress, String primaryContactName, String primaryContactMobile, String alternateContactMobile, String primaryContactEmail, String landlineNumber, String bankName, String accountHolderName, String accountNumber, String ifscCode, String branchName, String accountType, String panCardDocument, String gstCertificate, String addressProof, String bankProof, String franchiseAgreement, BigDecimal walletBalance) {
+    public MerchantViewDTO(String businessName, String legalName, String businessType, String gstNumber, String panNumber, String registrationNumber, String businessAddress, String primaryContactName, String primaryContactMobile, String alternateContactMobile, String primaryContactEmail, String landlineNumber, String bankName, String accountHolderName, String accountNumber, String ifscCode, String branchName, String accountType, String panCardDocument, String gstCertificate, String addressProof, String bankProof, String franchiseAgreement, BigDecimal walletBalance) {
         this.businessName = businessName;
-        this.franchiseName = franchiseName;
         this.legalName = legalName;
         this.businessType = businessType;
         this.gstNumber = gstNumber;

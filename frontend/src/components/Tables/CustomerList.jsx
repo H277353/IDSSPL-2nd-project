@@ -328,21 +328,7 @@ const ViewModal = ({ customer, customerType, onClose }) => {
         }
     }
 
-    const getContactPerson = () => {
-        if (customerType === 'franchise') {
-            return customerData?.contactPerson
-        } else {
-            return customerData?.contactPerson || {
-                name: customerData?.contactPersonName,
-                phoneNumber: customerData?.contactPersonPhone,
-                email: customerData?.contactPersonEmail,
-                alternatePhoneNum: customerData?.alternatePhoneNum,
-                landlineNumber: customerData?.landlineNumber
-            }
-        }
-    }
-
-    const contactPerson = getContactPerson()
+    
 
     if (!customer) return null
 
@@ -385,12 +371,12 @@ const ViewModal = ({ customer, customerType, onClose }) => {
                         <div>
                             <h3 className="font-semibold mb-3">Contact Information</h3>
                             <div className="space-y-2">
-                                <div><strong>Contact Person:</strong> {contactPerson?.name || 'N/A'}</div>
-                                <div><strong>Mobile:</strong> {contactPerson?.phoneNumber || 'N/A'}</div>
-                                <div><strong>Email:</strong> {contactPerson?.email || 'N/A'}</div>
-                                <div><strong>Alternate Mobile:</strong> {contactPerson?.alternatePhoneNum || 'N/A'}</div>
-                                <div><strong>Landline:</strong> {contactPerson?.landlineNumber || 'N/A'}</div>
-                                <div><strong>Address:</strong> {customerData?.address || customer?.address || 'N/A'}</div>
+                                <div><strong>Contact Person:</strong> {customerData?.primaryContactName || 'N/A'}</div>
+                                <div><strong>Mobile:</strong> {customerData?.primaryContactMobile || 'N/A'}</div>
+                                <div><strong>Email:</strong> {customerData?.primaryContactEmail || 'N/A'}</div>
+                                <div><strong>Alternate Mobile:</strong> {customerData?.alternateContactMobile || 'N/A'}</div>
+                                <div><strong>Landline:</strong> {customerData?.landlineNumber || 'N/A'}</div>
+                                <div><strong>Address:</strong> {customerData?.address || customerData?.businessAddress || 'N/A'}</div>
                             </div>
                         </div>
                     </div>
@@ -399,12 +385,12 @@ const ViewModal = ({ customer, customerType, onClose }) => {
                     <div>
                         <h3 className="font-semibold mb-3">Bank Information</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div><strong>Bank Name:</strong> {customerData?.bankDetails?.bankName || 'N/A'}</div>
-                            <div><strong>Account Holder:</strong> {customerData?.bankDetails?.accountHolderName || 'N/A'}</div>
-                            <div><strong>Account Number:</strong> {customerData?.bankDetails?.accountNumber || 'N/A'}</div>
-                            <div><strong>IFSC Code:</strong> {customerData?.bankDetails?.ifsc || 'N/A'}</div>
-                            <div><strong>Branch:</strong> {customerData?.bankDetails?.branchName || 'N/A'}</div>
-                            <div><strong>Account Type:</strong> {customerData?.bankDetails?.accountType || 'N/A'}</div>
+                            <div><strong>Bank Name:</strong> {customerData?.bankName || 'N/A'}</div>
+                            <div><strong>Account Holder:</strong> {customerData?.accountHolderName || 'N/A'}</div>
+                            <div><strong>Account Number:</strong> {customerData?.accountNumber || 'N/A'}</div>
+                            <div><strong>IFSC Code:</strong> {customerData?.ifscCode || 'N/A'}</div>
+                            <div><strong>Branch:</strong> {customerData?.branchName || 'N/A'}</div>
+                            <div><strong>Account Type:</strong> {customerData?.accountType || 'N/A'}</div>
                         </div>
                     </div>
 
@@ -412,14 +398,14 @@ const ViewModal = ({ customer, customerType, onClose }) => {
                     <div>
                         <h3 className="font-semibold mb-3">Documents</h3>
                         <div className="space-y-3">
-                            <DocumentItem docKey="panProof" docPath={documents.panProof} docName="PAN Card" />
-                            <DocumentItem docKey="gstCertificateProof" docPath={documents.gstCertificateProof} docName="GST Certificate" />
-                            <DocumentItem docKey="addressProof" docPath={documents.addressProof} docName="Address Proof" />
-                            <DocumentItem docKey="bankAccountProof" docPath={documents.bankAccountProof} docName="Bank Account Proof" />
-                            <DocumentItem docKey="adharProof" docPath={documents.adharProof} docName="Aadhar Proof" />
-                            <DocumentItem docKey="other1" docPath={documents.other1} docName="Other Document 1" />
-                            <DocumentItem docKey="other2" docPath={documents.other2} docName="Other Document 2" />
-                            <DocumentItem docKey="other3" docPath={documents.other3} docName="Other Document 3" />
+                            <DocumentItem docKey="panProof" docPath={customerData?.panCardDocument} docName="PAN Card" />
+                            <DocumentItem docKey="gstCertificateProof" docPath={customerData?.gstCertificate} docName="GST Certificate" />
+                            <DocumentItem docKey="addressProof" docPath={customerData?.addressProof} docName="Address Proof" />
+                            <DocumentItem docKey="bankAccountProof" docPath={customerData?.bankProof} docName="Bank Account Proof" />
+                            <DocumentItem docKey="adharProof" docPath={customerData?.adharProof} docName="Aadhar Proof" />
+                            <DocumentItem docKey="other1" docPath={customerData?.other1} docName="Other Document 1" />
+                            <DocumentItem docKey="other2" docPath={customerData?.other2} docName="Other Document 2" />
+                            <DocumentItem docKey="other3" docPath={customerData?.other3} docName="Other Document 3" />
                         </div>
                     </div>
 
@@ -458,13 +444,7 @@ const ViewModal = ({ customer, customerType, onClose }) => {
                             <div className="text-sm text-gray-600">Wallet Balance</div>
                             <div className="font-semibold">₹{(customerData?.walletBalance || customer?.walletBalance || 0).toLocaleString()}</div>
                         </div>
-                        {(customerType === 'merchant' || (customerType === 'franchise' && customerData?.monthlyRevenue !== undefined)) && (
-                            <div className="text-center">
-                                <TrendingUp className="w-8 h-8 mx-auto text-blue-600 mb-2" />
-                                <div className="text-sm text-gray-600">Monthly Revenue</div>
-                                <div className="font-semibold">₹{(customerData?.monthlyRevenue || customer?.monthlyRevenue || 0).toLocaleString()}</div>
-                            </div>
-                        )}
+                        
                         <div className="text-center">
                             <Calendar className="w-8 h-8 mx-auto text-purple-600 mb-2" />
                             <div className="text-sm text-gray-600">Created On</div>
@@ -786,15 +766,7 @@ const CustomerListComponent = () => {
                 </div>
             ),
         }),
-        columnHelper.accessor('monthlyRevenue', {
-            header: 'Monthly Revenue',
-            cell: (info) => (
-                <div className="flex items-center space-x-2">
-                    <TrendingUp className="w-4 h-4 text-gray-400" />
-                    <span className="font-medium">₹{(info.getValue() || 0).toLocaleString()}</span>
-                </div>
-            ),
-        }),
+        
         columnHelper.accessor('status', {
             header: 'Status',
             cell: (info) => <StatusBadge status={info.getValue() || 'active'} />,
@@ -878,15 +850,7 @@ const CustomerListComponent = () => {
                 </div>
             ),
         }),
-        columnHelper.accessor('monthlyRevenue', {
-            header: 'Monthly Revenue',
-            cell: (info) => (
-                <div className="flex items-center space-x-2">
-                    <TrendingUp className="w-4 h-4 text-gray-400" />
-                    <span className="font-medium">₹{(info.getValue() || 0).toLocaleString()}</span>
-                </div>
-            ),
-        }),
+      
         columnHelper.accessor('status', {
             header: 'Status',
             cell: (info) => <StatusBadge status={info.getValue() || 'active'} />,
