@@ -587,7 +587,7 @@ const OutwardFormModal = ({ isOpen, onClose, onSubmit, editData = null }) => {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Delivery Number <span className="text-red-500">*</span>
+                      Delivery Number is auto generated <span className='!text-red-700'> (might change)</span> <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
@@ -595,7 +595,7 @@ const OutwardFormModal = ({ isOpen, onClose, onSubmit, editData = null }) => {
                       className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${errors.deliveryNumber ? 'border-red-500' : 'border-gray-300 hover:border-gray-400'
                         }`}
                       placeholder="Enter delivery number"
-                      disabled={isSubmitting}
+                      disabled
                     />
                     {errors.deliveryNumber && (
                       <p className="mt-1 text-sm text-red-600 flex items-center">

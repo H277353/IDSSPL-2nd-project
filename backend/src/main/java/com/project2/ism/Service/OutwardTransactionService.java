@@ -54,9 +54,11 @@ public class OutwardTransactionService {
         @Transactional
         public OutwardTransactions
         createFromDTO(OutwardTransactionDTO dto) {
-            if (outwardTransactionRepository.existsByDeliveryNumber(dto.deliveryNumber)) {
-                throw new DuplicateResourceException("Delivery number already exists: " + dto.deliveryNumber);
-            }
+//            if (outwardTransactionRepository.existsByDeliveryNumber(dto.deliveryNumber)) {
+//                throw new DuplicateResourceException("Delivery number already exists: " + dto.deliveryNumber);
+//            }
+
+
 
             Franchise franchise = dto.franchiseId != null
                     ? franchiseRepo.findById(dto.franchiseId)
@@ -73,7 +75,9 @@ public class OutwardTransactionService {
                     .orElseThrow(() -> new ResourceNotFoundException("Product not found"))
                     : null;
 
+            dto.deliveryNumber = generateDeliveryNumber();
             OutwardTransactions outward = dto.toEntity(franchise, merchant, product,serialRepo);
+//            outward.setDeliveryNumber(generateDeliveryNumber());
             return outwardTransactionRepository.save(outward);
         }
 

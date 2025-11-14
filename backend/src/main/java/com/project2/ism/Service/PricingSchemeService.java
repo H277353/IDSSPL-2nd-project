@@ -44,12 +44,14 @@
 
         public PricingScheme createPricingScheme(PricingScheme pricingScheme) {
             // Check for duplicate scheme
-            if (pricingSchemeRepository.existsDuplicateSchemeForNew(
-                    pricingScheme.getSchemeCode(),
-                    pricingScheme.getRentalByMonth(),
-                    pricingScheme.getCustomerType())) {
-                throw new RuntimeException("Pricing scheme with same code, rental amount and customer type already exists");
-            }
+//            if (pricingSchemeRepository.existsDuplicateSchemeForNew(
+//                    pricingScheme.getSchemeCode(),
+//                    pricingScheme.getRentalByMonth(),
+//                    pricingScheme.getCustomerType())) {
+//                throw new RuntimeException("Pricing scheme with same code, rental amount and customer type already exists");
+//            }
+            String code = generateNextSchemeCode();
+            pricingScheme.setSchemeCode(code);
 
             // Set bidirectional relationship for card rates
             if (pricingScheme.getCardRates() != null) {

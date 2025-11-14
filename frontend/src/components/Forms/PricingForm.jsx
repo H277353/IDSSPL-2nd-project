@@ -532,7 +532,11 @@ const PricingSchemeFormModal = ({
               <h3 className="text-lg font-semibold text-gray-700 mb-4">Scheme Details</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input
-                  label="Scheme Code"
+                  label={<>
+                  Scheme Code will be <span className='!text-yellow-700'>auto generated  </span> in this format  
+                  <span className='!text-red-700'> (might change)</span>
+                 
+                  </>}
                   name="schemeCode"
                   register={register}
                   errors={errors}
@@ -540,6 +544,7 @@ const PricingSchemeFormModal = ({
                   disabled
                   readOnly
                   placeholder="Auto-generated"
+                  
                 />
                 {loading ? (
                   <div className="flex items-center">Loading categories...</div>
