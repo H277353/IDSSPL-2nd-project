@@ -75,8 +75,9 @@ public class OutwardTransactionService {
                     .orElseThrow(() -> new ResourceNotFoundException("Product not found"))
                     : null;
 
+            dto.deliveryNumber = generateDeliveryNumber();
             OutwardTransactions outward = dto.toEntity(franchise, merchant, product,serialRepo);
-            outward.setDeliveryNumber(generateDeliveryNumber());
+//            outward.setDeliveryNumber(generateDeliveryNumber());
             return outwardTransactionRepository.save(outward);
         }
 
