@@ -334,9 +334,8 @@ const ProductAssignmentFormModal = ({ onCancel, onSubmit, initialData = null, is
             } else {
                 response = await api.post('/outward-schemes', assignmentData)
                 toast.success("Scheme Assigned Successfully")
-
             }
-
+            
             onSubmit(response.data)
             onCancel()
         } catch (error) {
