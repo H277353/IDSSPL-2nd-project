@@ -37,13 +37,11 @@ public class Product {
     @JoinColumn(name = "product_category_id", nullable = false)
     private ProductCategory productCategory;
 
-    @NotBlank(message = "Model is required")
-    @Size(min = 2, message = "Model is required")
+
     @Column(name = "model", nullable = false, length = 100)
     private String model;
 
-    @NotBlank(message = "Brand is required")
-    @Size(min = 2, message = "Brand is required")
+
     @Column(name = "brand", nullable = false, length = 100)
     private String brand;
 
