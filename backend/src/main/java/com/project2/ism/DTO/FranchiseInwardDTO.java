@@ -1,7 +1,10 @@
 package com.project2.ism.DTO;
 
+import com.project2.ism.Model.InventoryTransactions.ProductSerialNumbers;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 public class FranchiseInwardDTO {
     private Long outwardId;
@@ -13,7 +16,16 @@ public class FranchiseInwardDTO {
     private LocalDate expectedDeliveryDate;
     private LocalDateTime receivedDate; // null → still in transit
 
+    private List<ProductSerialDTO> productSerialNumbers;
     // getters + setters
+
+    public List<ProductSerialDTO> getProductSerialNumbers() {
+        return productSerialNumbers;
+    }
+
+    public void setProductSerialNumbers(List<ProductSerialDTO> productSerialNumbers) {
+        this.productSerialNumbers = productSerialNumbers;
+    }
 
     public Long getOutwardId() {
         return outwardId;

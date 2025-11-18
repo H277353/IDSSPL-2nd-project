@@ -7,12 +7,23 @@ import {
     createColumnHelper,
 } from '@tanstack/react-table';
 import api from '../../constants/API/axiosInstance';
+import PsnModal from '../View/PsnModal';
+import { Eye } from 'lucide-react';
 
 const InwardForCustomer = () => {
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(false);
     const [buttonLoading, setButtonLoading] = useState({});
     const [error, setError] = useState(null);
+    const [selectedPsn, setSelectedPsn] = useState([]);
+    const [selectedProductName, setSelectedProductName] = useState('');
+    const [modalOpen, setModalOpen] = useState(false);
+
+    const openPsnModal = (row) => {
+        setSelectedPsn(row.productSerialNumbers);
+        setSelectedProductName(row.productName);
+        setModalOpen(true);
+    };
 
     // Fetch data on component mount
     useEffect(() => {
@@ -176,6 +187,23 @@ const InwardForCustomer = () => {
                 );
             },
         }),
+        columnHelper.display({
+            id: 'actions',
+            header: 'View',
+            cell: info => {
+                const row = info.row.original;
+
+                return (
+                    <button
+                        className="text-blue-600 hover:text-blue-800"
+                        onClick={() => openPsnModal(row)}
+                        title="View Serial Numbers"
+                    >
+                        <Eye size={16} />
+                    </button>
+                );
+            },
+        }),
     ], [buttonLoading]);
 
     const table = useReactTable({
@@ -286,6 +314,13 @@ const InwardForCustomer = () => {
                     </div>
                 </div>
             )}
+            <PsnModal
+                open={modalOpen}
+                onClose={() => setModalOpen(false)}
+                productName={selectedProductName}
+                serialNumbers={selectedPsn}
+            />
+
         </div>
     );
 };
