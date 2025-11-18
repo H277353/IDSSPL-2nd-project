@@ -3,6 +3,7 @@ package com.project2.ism.Service;
 import com.project2.ism.DTO.FranchiseInwardDTO;
 import com.project2.ism.DTO.MerchantInwardDTO;
 import com.project2.ism.DTO.OutwardTransactionDTO;
+import com.project2.ism.DTO.ProductSerialDTO;
 import com.project2.ism.Exception.DuplicateResourceException;
 import com.project2.ism.Exception.ResourceNotFoundException;
 import com.project2.ism.Model.InventoryTransactions.OutwardTransactions;
@@ -170,8 +171,9 @@ public class OutwardTransactionService {
     }
 
 
+
     public List<FranchiseInwardDTO> getFranchiseInward(Long franchiseId) {
-        List<OutwardTransactions> list = outwardTransactionRepository.findByFranchiseId(franchiseId);
+        List<OutwardTransactions> list = outwardTransactionRepository.findByFranchiseIdWithSerials(franchiseId);
 
         return list.stream().map(outward -> {
             FranchiseInwardDTO dto = new FranchiseInwardDTO();
@@ -183,6 +185,22 @@ public class OutwardTransactionService {
             dto.setDispatchDate(outward.getDispatchDate());
             dto.setExpectedDeliveryDate(outward.getExpectedDeliveryDate());
             dto.setReceivedDate(outward.getReceivedDate());
+            List<ProductSerialDTO> psnList = outward.getProductSerialNumbers()
+                    .stream()
+                    .map(psn -> {
+                        ProductSerialDTO p = new ProductSerialDTO();
+                        p.setId(psn.getId());
+                        p.setSid(psn.getSid());
+                        p.setMid(psn.getMid());
+                        p.setTid(psn.getTid());
+                        p.setVpaid(psn.getVpaid());
+                        p.setMobNumber(psn.getMobNumber());
+                        return p;
+                    })
+                    .toList();
+
+            dto.setProductSerialNumbers(psnList);
+
             return dto;
         }).toList();
     }
@@ -200,6 +218,21 @@ public class OutwardTransactionService {
             dto.setDispatchDate(outward.getDispatchDate());
             dto.setExpectedDeliveryDate(outward.getExpectedDeliveryDate());
             dto.setReceivedDate(outward.getReceivedDate());
+            List<ProductSerialDTO> psnList = outward.getProductSerialNumbers()
+                    .stream()
+                    .map(psn -> {
+                        ProductSerialDTO p = new ProductSerialDTO();
+                        p.setId(psn.getId());
+                        p.setSid(psn.getSid());
+                        p.setMid(psn.getMid());
+                        p.setTid(psn.getTid());
+                        p.setVpaid(psn.getVpaid());
+                        p.setMobNumber(psn.getMobNumber());
+                        return p;
+                    })
+                    .toList();
+
+            dto.setProductSerialNumbers(psnList);
             return dto;
         }).toList();
     }

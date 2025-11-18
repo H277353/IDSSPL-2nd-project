@@ -20,6 +20,8 @@ public interface OutwardTransactionRepository extends JpaRepository<OutwardTrans
 
     long countByDispatchDate(LocalDate dispatchDate);
 
+    @Query("SELECT o FROM OutwardTransactions o LEFT JOIN FETCH o.productSerialNumbers WHERE o.franchise.id = :franchiseId")
+    List<OutwardTransactions> findByFranchiseIdWithSerials(@Param("franchiseId") Long franchiseId);
 
     List<OutwardTransactions> findByFranchiseId(@Param("franchiseId") Long franchiseId);
     List<OutwardTransactions> findByFranchiseIdAndReceivedDateIsNotNull(@Param("franchiseId") Long franchiseId);
