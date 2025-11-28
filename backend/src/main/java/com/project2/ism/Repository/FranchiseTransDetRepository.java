@@ -112,20 +112,43 @@ public interface FranchiseTransDetRepository extends JpaRepository<FranchiseTran
     List<VendorTransactions> findByTransactionReferenceIdIn(
             @Param("vendorTransactionIds") List<String> vendorTransactionIds);
 
+    // ============================================================================
+// FRANCHISE TRANSACTION REPOSITORY
+// ============================================================================
 
     @Query("SELECT " +
+            // Settlement/Commission transactions (CREDIT)
+            "COUNT(CASE WHEN ftd.transactionType = 'CREDIT' AND ftd.service IN ('Settlement', 'COMMISSION') THEN 1 END) as settlementCount, " +
+            "COALESCE(SUM(CASE WHEN ftd.transactionType = 'CREDIT' AND ftd.service IN ('Settlement', 'COMMISSION') THEN ftd.amount END), 0) as totalSettlementAmount, " +
+            "COALESCE(SUM(CASE WHEN ftd.transactionType = 'CREDIT' AND ftd.service IN ('Settlement', 'COMMISSION') THEN ftd.netAmount END), 0) as totalCommissionEarned, " +
+
+            // Payout transactions (DEBIT)
+            "COUNT(CASE WHEN ftd.service = 'PAYOUT' THEN 1 END) as payoutCount, " +
+            "COALESCE(SUM(CASE WHEN ftd.service = 'PAYOUT' THEN ABS(ftd.netAmount) END), 0) as totalPayoutAmount, " +
+            "COALESCE(SUM(CASE WHEN ftd.service = 'PAYOUT' THEN ABS(ftd.amount - ftd.netAmount) END), 0) as totalPayoutFees, " +
+            "COUNT(CASE WHEN ftd.service = 'PAYOUT' AND ftd.tranStatus = 'SUCCESS' THEN 1 END) as successfulPayouts, " +
+            "COUNT(CASE WHEN ftd.service = 'PAYOUT' AND ftd.tranStatus = 'FAILED' THEN 1 END) as failedPayouts, " +
+            "COUNT(CASE WHEN ftd.service = 'PAYOUT' AND ftd.tranStatus = 'PENDING' THEN 1 END) as pendingPayouts, " +
+
+            // Refund transactions
+            "COUNT(CASE WHEN ftd.service = 'PAYOUT_REFUND' THEN 1 END) as refundCount, " +
+            "COALESCE(SUM(CASE WHEN ftd.service = 'PAYOUT_REFUND' THEN ftd.amount END), 0) as totalRefundAmount, " +
+
+            // Net position
+            "COALESCE(SUM(CASE WHEN ftd.transactionType = 'CREDIT' THEN ftd.amount END), 0) as netCreditAmount, " +
+            "COALESCE(SUM(CASE WHEN ftd.transactionType = 'DEBIT' THEN ftd.amount END), 0) as netDebitAmount, " +
+            "COALESCE(SUM(ftd.amount), 0) as netBalance, " +
+
+            // Overall stats
             "COUNT(ftd) as totalTransactions, " +
-            "COALESCE(SUM(ftd.amount), 0) as totalAmount, " +
-            "COALESCE(SUM(ftd.netAmount), 0) as totalCommission, " +
-            "COALESCE(SUM(ftd.amount - ftd.netAmount), 0) as totalNetAmount, " +
-            "COALESCE(AVG(ftd.amount), 0) as averageAmount, " +
-            "COUNT(CASE WHEN ftd.tranStatus = 'SETTLED' THEN 1 END) as successCount, " +
-            "COUNT(CASE WHEN ftd.tranStatus != 'SETTLED' THEN 1 END) as failureCount, " +
-            "COUNT(DISTINCT CASE WHEN ftd.tranStatus = 'SETTLED' THEN ftd.vendorName END) as activeMerchants " +
+            "COUNT(CASE WHEN ftd.tranStatus IN ('SUCCESS', 'SETTLED') THEN 1 END) as successCount, " +
+            "COUNT(CASE WHEN ftd.tranStatus = 'FAILED' THEN 1 END) as failureCount, " +
+            "COUNT(CASE WHEN ftd.tranStatus = 'PENDING' THEN 1 END) as pendingCount, " +
+            "COUNT(DISTINCT CASE WHEN ftd.tranStatus IN ('SUCCESS', 'SETTLED') AND ftd.service IN ('Settlement', 'COMMISSION') THEN ftd.vendorName END) as activeMerchants " +
+
             "FROM FranchiseTransactionDetails ftd WHERE " +
             "ftd.transactionDate BETWEEN :startDate AND :endDate " +
             "AND (:franchiseId IS NULL OR ftd.franchise.id = :franchiseId) " +
-            //"AND (:status IS NULL OR ftd.tranStatus = :status) " +
             "AND (:transactionType IS NULL OR ftd.transactionType = :transactionType)")
     Map<String, Object> getFranchiseTransactionSummary(
             @Param("startDate") LocalDateTime startDate,
@@ -134,22 +157,40 @@ public interface FranchiseTransDetRepository extends JpaRepository<FranchiseTran
             @Param("status") String status,
             @Param("transactionType") String transactionType);
 
-
-
-    // Summary based on settlement date
+    // Settlement date version
     @Query("SELECT " +
+            // Settlement/Commission transactions (CREDIT)
+            "COUNT(CASE WHEN ftd.transactionType = 'CREDIT' AND ftd.service IN ('Settlement', 'COMMISSION') THEN 1 END) as settlementCount, " +
+            "COALESCE(SUM(CASE WHEN ftd.transactionType = 'CREDIT' AND ftd.service IN ('Settlement', 'COMMISSION') THEN ftd.amount END), 0) as totalSettlementAmount, " +
+            "COALESCE(SUM(CASE WHEN ftd.transactionType = 'CREDIT' AND ftd.service IN ('Settlement', 'COMMISSION') THEN ftd.netAmount END), 0) as totalCommissionEarned, " +
+
+            // Payout transactions (DEBIT)
+            "COUNT(CASE WHEN ftd.service = 'PAYOUT' THEN 1 END) as payoutCount, " +
+            "COALESCE(SUM(CASE WHEN ftd.service = 'PAYOUT' THEN ABS(ftd.netAmount) END), 0) as totalPayoutAmount, " +
+            "COALESCE(SUM(CASE WHEN ftd.service = 'PAYOUT' THEN ABS(ftd.amount - ftd.netAmount) END), 0) as totalPayoutFees, " +
+            "COUNT(CASE WHEN ftd.service = 'PAYOUT' AND ftd.tranStatus = 'SUCCESS' THEN 1 END) as successfulPayouts, " +
+            "COUNT(CASE WHEN ftd.service = 'PAYOUT' AND ftd.tranStatus = 'FAILED' THEN 1 END) as failedPayouts, " +
+            "COUNT(CASE WHEN ftd.service = 'PAYOUT' AND ftd.tranStatus = 'PENDING' THEN 1 END) as pendingPayouts, " +
+
+            // Refund transactions
+            "COUNT(CASE WHEN ftd.service = 'PAYOUT_REFUND' THEN 1 END) as refundCount, " +
+            "COALESCE(SUM(CASE WHEN ftd.service = 'PAYOUT_REFUND' THEN ftd.amount END), 0) as totalRefundAmount, " +
+
+            // Net position
+            "COALESCE(SUM(CASE WHEN ftd.transactionType = 'CREDIT' THEN ftd.amount END), 0) as netCreditAmount, " +
+            "COALESCE(SUM(CASE WHEN ftd.transactionType = 'DEBIT' THEN ftd.amount END), 0) as netDebitAmount, " +
+            "COALESCE(SUM(ftd.amount), 0) as netBalance, " +
+
+            // Overall stats
             "COUNT(ftd) as totalTransactions, " +
-            "COALESCE(SUM(ftd.amount), 0) as totalAmount, " +
-            "COALESCE(SUM(ftd.netAmount), 0) as totalCommission, " +
-            "COALESCE(SUM(ftd.amount - ftd.netAmount), 0) as totalNetAmount, " +
-            "COALESCE(AVG(ftd.amount), 0) as averageAmount, " +
-            "COUNT(CASE WHEN ftd.tranStatus = 'SETTLED' THEN 1 END) as successCount, " +
-            "COUNT(CASE WHEN ftd.tranStatus != 'SETTLED' THEN 1 END) as failureCount, " +
-            "COUNT(DISTINCT CASE WHEN ftd.tranStatus = 'SETTLED' THEN ftd.vendorName END) as activeMerchants " +
+            "COUNT(CASE WHEN ftd.tranStatus IN ('SUCCESS', 'SETTLED') THEN 1 END) as successCount, " +
+            "COUNT(CASE WHEN ftd.tranStatus = 'FAILED' THEN 1 END) as failureCount, " +
+            "COUNT(CASE WHEN ftd.tranStatus = 'PENDING' THEN 1 END) as pendingCount, " +
+            "COUNT(DISTINCT CASE WHEN ftd.tranStatus IN ('SUCCESS', 'SETTLED') AND ftd.service IN ('Settlement', 'COMMISSION') THEN ftd.vendorName END) as activeMerchants " +
+
             "FROM FranchiseTransactionDetails ftd WHERE " +
             "ftd.updatedDateAndTimeOfTransaction BETWEEN :startDate AND :endDate " +
             "AND (:franchiseId IS NULL OR ftd.franchise.id = :franchiseId) " +
-            //"AND (:status IS NULL OR ftd.tranStatus = :status) " +
             "AND (:transactionType IS NULL OR ftd.transactionType = :transactionType)")
     Map<String, Object> getFranchiseTransactionSummaryBySettlementDate(
             @Param("startDate") LocalDateTime startDate,
@@ -157,6 +198,51 @@ public interface FranchiseTransDetRepository extends JpaRepository<FranchiseTran
             @Param("franchiseId") Long franchiseId,
             @Param("status") String status,
             @Param("transactionType") String transactionType);
+
+//    @Query("SELECT " +
+//            "COUNT(ftd) as totalTransactions, " +
+//            "COALESCE(SUM(ftd.amount), 0) as totalAmount, " +
+//            "COALESCE(SUM(ftd.netAmount), 0) as totalCommission, " +
+//            "COALESCE(SUM(ftd.amount - ftd.netAmount), 0) as totalNetAmount, " +
+//            "COALESCE(AVG(ftd.amount), 0) as averageAmount, " +
+//            "COUNT(CASE WHEN ftd.tranStatus = 'SETTLED' THEN 1 END) as successCount, " +
+//            "COUNT(CASE WHEN ftd.tranStatus != 'SETTLED' THEN 1 END) as failureCount, " +
+//            "COUNT(DISTINCT CASE WHEN ftd.tranStatus = 'SETTLED' THEN ftd.vendorName END) as activeMerchants " +
+//            "FROM FranchiseTransactionDetails ftd WHERE " +
+//            "ftd.transactionDate BETWEEN :startDate AND :endDate " +
+//            "AND (:franchiseId IS NULL OR ftd.franchise.id = :franchiseId) " +
+//            //"AND (:status IS NULL OR ftd.tranStatus = :status) " +
+//            "AND (:transactionType IS NULL OR ftd.transactionType = :transactionType)")
+//    Map<String, Object> getFranchiseTransactionSummary(
+//            @Param("startDate") LocalDateTime startDate,
+//            @Param("endDate") LocalDateTime endDate,
+//            @Param("franchiseId") Long franchiseId,
+//            @Param("status") String status,
+//            @Param("transactionType") String transactionType);
+//
+//
+//
+//    // Summary based on settlement date
+//    @Query("SELECT " +
+//            "COUNT(ftd) as totalTransactions, " +
+//            "COALESCE(SUM(ftd.amount), 0) as totalAmount, " +
+//            "COALESCE(SUM(ftd.netAmount), 0) as totalCommission, " +
+//            "COALESCE(SUM(ftd.amount - ftd.netAmount), 0) as totalNetAmount, " +
+//            "COALESCE(AVG(ftd.amount), 0) as averageAmount, " +
+//            "COUNT(CASE WHEN ftd.tranStatus = 'SETTLED' THEN 1 END) as successCount, " +
+//            "COUNT(CASE WHEN ftd.tranStatus != 'SETTLED' THEN 1 END) as failureCount, " +
+//            "COUNT(DISTINCT CASE WHEN ftd.tranStatus = 'SETTLED' THEN ftd.vendorName END) as activeMerchants " +
+//            "FROM FranchiseTransactionDetails ftd WHERE " +
+//            "ftd.updatedDateAndTimeOfTransaction BETWEEN :startDate AND :endDate " +
+//            "AND (:franchiseId IS NULL OR ftd.franchise.id = :franchiseId) " +
+//            //"AND (:status IS NULL OR ftd.tranStatus = :status) " +
+//            "AND (:transactionType IS NULL OR ftd.transactionType = :transactionType)")
+//    Map<String, Object> getFranchiseTransactionSummaryBySettlementDate(
+//            @Param("startDate") LocalDateTime startDate,
+//            @Param("endDate") LocalDateTime endDate,
+//            @Param("franchiseId") Long franchiseId,
+//            @Param("status") String status,
+//            @Param("transactionType") String transactionType);
 
 // export excel
     // In FranchiseTransactionRepository

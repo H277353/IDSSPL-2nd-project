@@ -497,6 +497,7 @@ public class EnhancedSettlementService2 {
         if (!merchantTxnRepo.existsByVendorTransactionId(vt.getInternalId().toString())) {
             MerchantTransactionDetails mtd = new MerchantTransactionDetails();
             mtd.setMerchant(merchant);
+            mtd.setGrossCharge(fee);
             mtd.setCharge(fee);
             mtd.setActionOnBalance("CREDIT");
             mtd.setVendorTransactionId(vt.getTransactionReferenceId());

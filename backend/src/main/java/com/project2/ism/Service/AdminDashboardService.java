@@ -4,7 +4,7 @@ import com.project2.ism.DTO.AdminDTO.SettlementActivityStatsDTO;
 import com.project2.ism.DTO.CustomerSchemeAssignmentDTO;
 import com.project2.ism.DTO.FranchiseMerchantStatsDTO;
 import com.project2.ism.DTO.InventoryTransactionStatsDTO;
-import com.project2.ism.DTO.VendorStatsDTO;
+import com.project2.ism.DTO.Vendor.VendorStatsDTO;
 import com.project2.ism.Repository.FranchiseSettlementBatchRepository;
 import com.project2.ism.Repository.MerchantSettlementBatchRepository;
 import org.springframework.security.core.Authentication;

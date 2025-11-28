@@ -1,5 +1,10 @@
 import { lazy } from 'react';
 
+const PaymentVendorCredentialsTable = lazy(() => import('../../components/Tables/PaymentVendorCredentialsTable.jsx'));
+const PaymentChargesTable = lazy(() =>  import('../../components/Tables/PaymentChargesTable.jsx'));
+const PaymentProductsTable = lazy(() =>  import('../../components/Tables/PaymentProductsTable.jsx'));
+const PaymentVendorsTable = lazy(() =>  import('../../components/Tables/PaymentVendorsTable.jsx'));
+const PaymentVendorRoutingTable = lazy(() =>  import('../../components/Tables/PaymentVendorRoutingTable.jsx'));
 const Dashboard = lazy(() => import('../../components/DashBoards/Dashborad.jsx'));
 const CustomerOnboarding = lazy(() => import('../../components/Forms/CustomerOnboarding/CustomerOnborading.jsx'));
 const VendorListPage = lazy(() => import('../../components/Tables/VendorTable.jsx'));
@@ -77,7 +82,9 @@ export const adminRoutes = [
       {
         path: "rates",
         element: <VendorRatesManagement />
-      }
+      },
+     
+      
     ]
   },
   // Inventory routes
@@ -134,6 +141,32 @@ export const adminRoutes = [
         path: "inward-products",
         element: <ProductOutward />
       }
+    ]
+  },
+  {
+    path: "payment",
+    children: [
+      {
+        path:"products",
+        element: <PaymentProductsTable />
+      },
+      {
+        path: "payment-vendors",
+        element: <PaymentVendorsTable />
+      },
+      {
+        path: "payment-vendors-creds",
+        element: <PaymentVendorCredentialsTable />
+      },
+      {
+        path: "charges",
+        element: <PaymentChargesTable />
+      },
+      {
+        path: "payment-vendor-routing",
+        element: <PaymentVendorRoutingTable />
+      },
+      
     ]
   },
   // Transaction routes

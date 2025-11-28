@@ -36,6 +36,7 @@ public class MerchantTransactionReportDTO {
     private String merchantName;
     private String franchiseName;
     private String state;
+    private String service;
 
     // Getters and setters...
 
@@ -58,7 +59,8 @@ public class MerchantTransactionReportDTO {
             String cardClassification,
             String merchantName,
             String franchiseName,
-            String state
+            String state,
+            String service
     ) {
         this.customTxnId = customTxnId;
         this.txnId = txnId;
@@ -74,15 +76,26 @@ public class MerchantTransactionReportDTO {
         this.merchantName = merchantName;
         this.franchiseName = franchiseName;
         this.state = state;
-
+        this.service = service;
         // Store raw values (keep grossCharge for role-based logic later)
         this.settleAmount = merchantNetAmount;
         this.systemFee = charge;  // This is what we show by default
-        this.commissionAmount = franchiseNetAmount;
+
 
         // Store grossCharge internally (we'll use it for merchant view)
         this.grossCharge = grossCharge;  // ADD this field to your DTO
 
+        // ===================== FIX: PAYOUT → NO COMMISSION =====================
+        if ("PAYOUT".equalsIgnoreCase(service) || "PAYOUT_REFUND".equalsIgnoreCase(service)) {
+
+            this.commissionAmount = BigDecimal.ZERO;
+            this.merchantRate = null;
+            this.franchiseRate = null;
+            this.commissionRate = null;
+            this.settlementPercentage = null;
+            return; // STOP here → no further calculation
+        }
+        this.commissionAmount = franchiseNetAmount;
         // Safe calculations
         if (txnAmount != null && txnAmount.compareTo(BigDecimal.ZERO) > 0 && merchantNetAmount != null) {
 
@@ -319,5 +332,13 @@ public class MerchantTransactionReportDTO {
 
     public void setState(String state) {
         this.state = state;
+    }
+
+    public String getService() {
+        return service;
+    }
+
+    public void setService(String service) {
+        this.service = service;
     }
 }

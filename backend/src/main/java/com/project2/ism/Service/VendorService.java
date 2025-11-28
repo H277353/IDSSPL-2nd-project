@@ -1,7 +1,7 @@
 package com.project2.ism.Service;
 
-import com.project2.ism.DTO.VendorIDNameDTO;
-import com.project2.ism.DTO.VendorStatsDTO;
+import com.project2.ism.DTO.Vendor.VendorIDNameDTO;
+import com.project2.ism.DTO.Vendor.VendorStatsDTO;
 import com.project2.ism.Exception.DuplicateResourceException;
 import com.project2.ism.Model.Product;
 import com.project2.ism.Model.Vendor.Vendor;

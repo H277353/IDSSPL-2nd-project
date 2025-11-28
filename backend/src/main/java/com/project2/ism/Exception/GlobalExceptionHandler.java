@@ -9,6 +9,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.transaction.UnexpectedRollbackException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -44,6 +45,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleResourceNotFound(ResourceNotFoundException ex, WebRequest request) {
         logger.error("Resource not found: {}", ex.getMessage());
+        return new ResponseEntity<>(buildErrorResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request.getDescription(false)), HttpStatus.NOT_FOUND);
+    }
+
+    // No PaymentVendor Not Found
+    @ExceptionHandler(NoAvailableVendorException.class)
+    public ResponseEntity<ErrorResponse> handleNoAvailableVendorException(NoAvailableVendorException ex, WebRequest request) {
+        logger.error("NoAvailableVendor : {}", ex.getMessage());
         return new ResponseEntity<>(buildErrorResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request.getDescription(false)), HttpStatus.NOT_FOUND);
     }
 
@@ -176,6 +184,25 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleGlobalException(Exception ex, WebRequest request) {
         logger.error("Unexpected error: {}", ex.getMessage(), ex);
         return new ResponseEntity<>(buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage(), request.getDescription(false)), HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalState(IllegalStateException ex, WebRequest request) {
+        logger.error("Illegal state: {}", ex.getMessage());
+        return new ResponseEntity<>(
+                buildErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request.getDescription(false)),
+                HttpStatus.BAD_REQUEST
+        );
+    }
+    @ExceptionHandler(UnexpectedRollbackException.class)
+    public ResponseEntity<ErrorResponse> handleRollback(UnexpectedRollbackException ex, WebRequest request) {
+        logger.error("Transaction rollback: {}", ex.getMessage());
+        return new ResponseEntity<>(
+                buildErrorResponse(HttpStatus.CONFLICT,
+                        "Transaction failed due to rollback: " + ex.getMessage(),
+                        request.getDescription(false)),
+                HttpStatus.CONFLICT
+        );
     }
 
 

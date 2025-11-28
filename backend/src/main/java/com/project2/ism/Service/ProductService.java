@@ -7,7 +7,7 @@ import com.project2.ism.Repository.ProductRepository;
 import com.project2.ism.Repository.ProductCategoryRepository;
 import com.project2.ism.Repository.VendorRepository;
 import com.project2.ism.DTO.ProductDTO;
-import com.project2.ism.DTO.VendorIDNameDTO;
+import com.project2.ism.DTO.Vendor.VendorIDNameDTO;
 import com.project2.ism.DTO.ProductCategoryDTO;
 import com.project2.ism.Exception.ResourceNotFoundException;
 import org.slf4j.Logger;

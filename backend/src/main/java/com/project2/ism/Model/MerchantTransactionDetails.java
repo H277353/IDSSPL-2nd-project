@@ -19,9 +19,6 @@ public class MerchantTransactionDetails extends TransactionDetailsBase{
     @JoinColumn(name = "merchant_id",nullable = false)
     private Merchant merchant;
 
-    private BigDecimal charge;
-
-    private BigDecimal grossCharge;
 
     public MerchantTransactionDetails() {
     }
@@ -34,19 +31,5 @@ public class MerchantTransactionDetails extends TransactionDetailsBase{
         this.merchant = merchant;
     }
 
-    public BigDecimal getCharge() {
-        return charge;
-    }
 
-    public void setCharge(BigDecimal charge) {
-        this.charge = charge;
-    }
-
-    public BigDecimal getGrossCharge() {
-        return grossCharge;
-    }
-
-    public void setGrossCharge(BigDecimal grossCharge) {
-        this.grossCharge = grossCharge;
-    }
 }

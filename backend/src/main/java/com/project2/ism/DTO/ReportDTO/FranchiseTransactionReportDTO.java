@@ -36,6 +36,7 @@ public class FranchiseTransactionReportDTO {
     private String merchantName;
     private String franchiseName;
     private String state;
+    private String service;
 
     public FranchiseTransactionReportDTO(
             String txnId,
@@ -57,7 +58,9 @@ public class FranchiseTransactionReportDTO {
             String cardClassification,
             String merchantName,
             String franchiseName,
-            String state
+            String state,
+            String service
+
     ) {
         this.txnId = txnId;
         this.customTxnId = customTxnId;
@@ -73,11 +76,28 @@ public class FranchiseTransactionReportDTO {
         this.merchantName = merchantName;
         this.franchiseName = franchiseName;
         this.state = state;
+        this.service = service;
 
         // Safe assignment - handle nulls
         this.settleAmount = merchantNetAmount != null ? merchantNetAmount : BigDecimal.ZERO;
         this.systemFee = grossCharge != null ? grossCharge : BigDecimal.ZERO;
         this.commissionAmount = franchiseCommission != null ? franchiseCommission : BigDecimal.ZERO;
+        // ===================== FIX: PAYOUT → NO COMMISSION =====================
+        if ("PAYOUT".equalsIgnoreCase(service) || "PAYOUT_REFUND".equalsIgnoreCase(service)) {
+
+            this.commissionAmount = BigDecimal.ZERO;
+            this.commissionRate = null;
+            this.franchiseRate = null;
+            this.merchantRate = null;
+            this.settlementRate = null;
+            this.tdsAmount = BigDecimal.ZERO;
+            this.gstAmount = BigDecimal.ZERO;
+            this.systemFeeExGST = BigDecimal.ZERO;
+            this.netCommissionAmount = BigDecimal.ZERO;
+
+            return;
+        }
+        // =======================================================================
 
         // Calculate rates only if we have valid data
         if (txnAmount != null && txnAmount.compareTo(BigDecimal.ZERO) > 0
@@ -249,5 +269,13 @@ public class FranchiseTransactionReportDTO {
 
     public String getState() { return state; }
     public void setState(String state) { this.state = state; }
+
+    public String getService() {
+        return service;
+    }
+
+    public void setService(String service) {
+        this.service = service;
+    }
 }
 

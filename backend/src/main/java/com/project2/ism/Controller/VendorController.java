@@ -1,12 +1,10 @@
 package com.project2.ism.Controller;
 
-import com.project2.ism.DTO.VendorIDNameDTO;
-import com.project2.ism.DTO.VendorStatsDTO;
+import com.project2.ism.DTO.Vendor.VendorIDNameDTO;
+import com.project2.ism.DTO.Vendor.VendorStatsDTO;
 import com.project2.ism.Model.Vendor.Vendor;
 import com.project2.ism.Service.VendorService;
-import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

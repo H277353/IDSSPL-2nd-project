@@ -112,6 +112,11 @@ public abstract class TransactionDetailsBase {
     private BigDecimal netAmount;
 
 
+
+    private BigDecimal charge;
+
+    private BigDecimal grossCharge;
+
     public TransactionDetailsBase() {
     }
 
@@ -363,5 +368,19 @@ public abstract class TransactionDetailsBase {
         this.vendorTransactionId = vendorTransactionId;
     }
 
+    public BigDecimal getCharge() {
+        return charge;
+    }
 
+    public void setCharge(BigDecimal charge) {
+        this.charge = charge;
+    }
+
+    public BigDecimal getGrossCharge() {
+        return grossCharge;
+    }
+
+    public void setGrossCharge(BigDecimal grossCharge) {
+        this.grossCharge = grossCharge;
+    }
 }

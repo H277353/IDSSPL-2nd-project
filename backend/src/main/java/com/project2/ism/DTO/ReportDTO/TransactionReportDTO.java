@@ -383,7 +383,7 @@ public class TransactionReportDTO {
 
     public static class TransactionReportResponse<T> {
         private List<T> transactions;
-        private TransactionSummary summary;
+        private Object summary;
         private LocalDateTime reportGeneratedAt;
         private String reportType;
         private int totalPages;
@@ -415,11 +415,11 @@ public class TransactionReportDTO {
             this.transactions = transactions;
         }
 
-        public TransactionSummary getSummary() {
+        public Object getSummary() {
             return summary;
         }
 
-        public void setSummary(TransactionSummary summary) {
+        public void setSummary(Object summary) {
             this.summary = summary;
         }
 

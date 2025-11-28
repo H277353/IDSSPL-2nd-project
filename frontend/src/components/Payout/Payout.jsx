@@ -76,16 +76,24 @@ const Payout = () => {
 
     const handleTransfer = async (bankId, amount, transferType) => {
         try {
-            const response = await api.post('/payout/transfer', {
-                bankId,
+            const response = await api.post('/payment-payout/transfer', {
+                payoutBankId:bankId,
                 amount,
-                transferType,
+                paymentMode:transferType,
                 customerId
             });
-            toast.success('Transfer initiated successfully');
+            toast.success(response.data.message || 'Transfer initiated successfully');
+            
         } catch (error) {
-            toast.error('Transfer failed');
+            const errMsg =
+                error?.response?.data?.message ||
+                error?.response?.data?.error ||
+                error?.message ||
+                "Transfer failed";
+
+            toast.error(errMsg);
         }
+
     };
 
     const columns = [

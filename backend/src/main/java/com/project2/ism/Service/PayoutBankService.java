@@ -2,7 +2,7 @@ package com.project2.ism.Service;
 
 import com.project2.ism.DTO.PayoutDTO.VerifyAndAddBankRequest;
 import com.project2.ism.Exception.BankVerificationException;
-import com.project2.ism.Model.PayoutBanks;
+import com.project2.ism.Model.Payout.PayoutBanks;
 import com.project2.ism.Repository.PayoutBankRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -136,8 +136,10 @@ public class PayoutBankService {
                     customerId,
                     request.getBankHolderName(),
                     request.getBankName(),
-                    request.getAccountNumber(),
-                    request.getIfscCode()
+                    request.getIfscCode(),
+                    request.getStateName(),
+                    request.getAccountNumber()
+
             );
 
             // Set as verified since we successfully verified it
