@@ -33,7 +33,25 @@ public class ExcelParser {
             DateTimeFormatter.ofPattern("M/dd/yy HH:mm"),
             DateTimeFormatter.ofPattern("M/d/yy HH:mm"),
             DateTimeFormatter.ofPattern("M/d/yy H:mm"),
-            DateTimeFormatter.ofPattern("M/dd/yy H:mm")
+            DateTimeFormatter.ofPattern("M/dd/yy H:mm"),
+
+
+            // --------------------
+            // New Date-only patterns
+            // --------------------
+            DateTimeFormatter.ofPattern("dd/MM/yyyy"),
+            DateTimeFormatter.ofPattern("dd/MM/uuuu"),
+            DateTimeFormatter.ofPattern("dd/MM/yy"),
+
+            DateTimeFormatter.ofPattern("dd-MM-yyyy"),
+            DateTimeFormatter.ofPattern("dd-MM-uuuu"),
+            DateTimeFormatter.ofPattern("dd-MM-yy"),
+
+            DateTimeFormatter.ofPattern("yyyy-MM-dd"),
+
+            DateTimeFormatter.ofPattern("MM/dd/yy"),
+            DateTimeFormatter.ofPattern("M/d/yy"),
+            DateTimeFormatter.ofPattern("M/dd/yy")
     };
 
     public List<VendorTransactions> parse(InputStream in) {

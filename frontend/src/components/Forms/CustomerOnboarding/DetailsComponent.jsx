@@ -426,7 +426,7 @@ export const BasicDetailsForm = ({ register, errors, customerType }) => (
                 name="registrationNumber"
                 register={register}
                 errors={errors}
-                required
+                
                 placeholder="Company/Shop registration number"
             />
         </div>
