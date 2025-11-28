@@ -3,8 +3,9 @@ package com.project2.ism.Service;
 
 
 import com.project2.ism.DTO.ReportDTO.FranchiseTransactionReportDTO;
+import com.project2.ism.DTO.ReportDTO.FranchiseTransactionReportSummary;
 import com.project2.ism.DTO.ReportDTO.MerchantTransactionReportDTO;
-import com.project2.ism.DTO.ReportDTO.TransactionReportDTO.TransactionDetailResponse;
+import com.project2.ism.DTO.ReportDTO.MerchantTransactionReportSummary;
 import com.project2.ism.DTO.ReportDTO.TransactionReportDTO.TransactionReportRequest;
 import com.project2.ism.DTO.ReportDTO.TransactionReportDTO.TransactionReportResponse;
 import com.project2.ism.DTO.ReportDTO.TransactionReportDTO.TransactionSummary;
@@ -36,6 +37,7 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -111,7 +113,7 @@ public class TransactionReportService {
                     .collect(Collectors.toList());
 
             // Get summary
-            TransactionSummary summary = getEnhancedMerchantTransactionSummary(request);
+            MerchantTransactionReportSummary summary = getEnhancedMerchantTransactionSummary(request);
 
             // Build response
             TransactionReportResponse<MerchantTransactionReportDTO> response = new TransactionReportResponse<>();
@@ -154,6 +156,8 @@ public class TransactionReportService {
     // Helper method to calculate GST
     private void calculateAndSetGst(MerchantTransactionReportDTO dto, BigDecimal gstPercentage) {
         // Calculate GST on system fee (merchant's charge)
+
+        if ("PAYOUT".equalsIgnoreCase(dto.getService()) || "PAYOUT_REFUND".equalsIgnoreCase(dto.getService())) return;
         if (dto.getSystemFee() != null && gstPercentage != null) {
             BigDecimal gstAmount = dto.getSystemFee()
                     .multiply(gstPercentage)
@@ -266,7 +270,7 @@ public class TransactionReportService {
             );
 
             // Get franchise summary with commission data
-            FranchiseTransactionSummary summary = getEnhancedFranchiseTransactionSummary(request);
+            FranchiseTransactionReportSummary summary = getEnhancedFranchiseTransactionSummary(request);
 
             // Build response
             TransactionReportResponse<FranchiseTransactionReportDTO> response = new TransactionReportResponse<>();
@@ -345,7 +349,8 @@ public class TransactionReportService {
                 ftd.getFranchise() != null ? ftd.getFranchise().getFranchiseName() : null,
 
                 // Transaction status
-                ftd.getTranStatus()
+                ftd.getTranStatus(),
+                ftd.getService()
         );
         String userRole = getUserRoleFromSecurityContext();
         return applyFranchiseRoleBasedFiltering(dto,userRole);
@@ -378,34 +383,7 @@ public class TransactionReportService {
     /**
      * Get enhanced merchant transaction summary
      */
-    public TransactionSummary getEnhancedMerchantTransactionSummary(TransactionReportRequest request) {
-        validateReportRequest(request);
-
-        Map<String, Object> summaryData;
-
-        if ("SETTLEMENT_DATE".equals(request.getDateFilterType())) {
-            summaryData = merchantTransactionRepository.getMerchantTransactionSummaryBySettlementDate(
-                    request.getStartDate(),
-                    request.getEndDate(),
-                    request.getMerchantId(),
-                    request.getTransactionStatus(),
-                    request.getTransactionType());
-        } else {
-            summaryData = merchantTransactionRepository.getMerchantTransactionSummary(
-                    request.getStartDate(),
-                    request.getEndDate(),
-                    request.getMerchantId(),
-                    request.getTransactionStatus(),
-                    request.getTransactionType());
-        }
-
-        return buildTransactionSummary(summaryData);
-    }
-
-    /**
-     * Get enhanced franchise transaction summary
-     */
-    public FranchiseTransactionSummary getEnhancedFranchiseTransactionSummary(TransactionReportRequest request) {
+    public FranchiseTransactionReportSummary getEnhancedFranchiseTransactionSummary(TransactionReportRequest request) {
         validateReportRequest(request);
 
         Map<String, Object> summaryData;
@@ -426,19 +404,103 @@ public class TransactionReportService {
                     request.getTransactionType());
         }
 
-        FranchiseTransactionSummary summary = new FranchiseTransactionSummary();
-        populateBasicSummary(summary, summaryData);
+        return buildFranchiseTransactionSummary(summaryData);
+    }
 
-        // Set franchise-specific data
-        summary.setTotalCommission(getBigDecimalValue(summaryData, "totalCommission"));
+    public MerchantTransactionReportSummary getEnhancedMerchantTransactionSummary(TransactionReportRequest request) {
+        validateReportRequest(request);
+
+        Map<String, Object> summaryData;
+
+        if ("SETTLEMENT_DATE".equals(request.getDateFilterType())) {
+            summaryData = merchantTransactionRepository.getMerchantTransactionSummaryBySettlementDate(
+                    request.getStartDate(),
+                    request.getEndDate(),
+                    request.getMerchantId(),
+                    request.getTransactionStatus(),
+                    request.getTransactionType());
+        } else {
+            summaryData = merchantTransactionRepository.getMerchantTransactionSummary(
+                    request.getStartDate(),
+                    request.getEndDate(),
+                    request.getMerchantId(),
+                    request.getTransactionStatus(),
+                    request.getTransactionType());
+        }
+
+        return buildMerchantTransactionSummary(summaryData);
+    }
+
+    private FranchiseTransactionReportSummary buildFranchiseTransactionSummary(Map<String, Object> summaryData) {
+        FranchiseTransactionReportSummary summary = new FranchiseTransactionReportSummary();
+
+        // Settlement/Commission data
+        summary.setSettlementCount(getLongValue(summaryData, "settlementCount"));
+        summary.setTotalSettlementAmount(getBigDecimalValue(summaryData, "totalSettlementAmount"));
+        summary.setTotalCommissionEarned(getBigDecimalValue(summaryData, "totalCommissionEarned"));
+
+        // Payout data
+        summary.setPayoutCount(getLongValue(summaryData, "payoutCount"));
+        summary.setTotalPayoutAmount(getBigDecimalValue(summaryData, "totalPayoutAmount"));
+        summary.setTotalPayoutFees(getBigDecimalValue(summaryData, "totalPayoutFees"));
+        summary.setSuccessfulPayouts(getLongValue(summaryData, "successfulPayouts"));
+        summary.setFailedPayouts(getLongValue(summaryData, "failedPayouts"));
+        summary.setPendingPayouts(getLongValue(summaryData, "pendingPayouts"));
+
+        // Refund data
+        summary.setRefundCount(getLongValue(summaryData, "refundCount"));
+        summary.setTotalRefundAmount(getBigDecimalValue(summaryData, "totalRefundAmount"));
+
+        // Net position
+        summary.setNetCreditAmount(getBigDecimalValue(summaryData, "netCreditAmount"));
+        summary.setNetDebitAmount(getBigDecimalValue(summaryData, "netDebitAmount"));
+        summary.setNetBalance(getBigDecimalValue(summaryData, "netBalance"));
+
+        // Overall stats
+        summary.setTotalTransactions(getLongValue(summaryData, "totalTransactions"));
+        summary.setSuccessCount(getLongValue(summaryData, "successCount"));
+        summary.setFailureCount(getLongValue(summaryData, "failureCount"));
+        summary.setPendingCount(getLongValue(summaryData, "pendingCount"));
         summary.setActiveMerchants(getLongValue(summaryData, "activeMerchants"));
-
-        // Calculate commission breakdown
-        CommissionBreakdown commissionBreakdown = calculateCommissionBreakdown(summaryData);
-        summary.setCommissionBreakdown(commissionBreakdown);
 
         return summary;
     }
+
+    private MerchantTransactionReportSummary buildMerchantTransactionSummary(Map<String, Object> summaryData) {
+        MerchantTransactionReportSummary summary = new MerchantTransactionReportSummary();
+
+        // Settlement data
+        summary.setSettlementCount(getLongValue(summaryData, "settlementCount"));
+        summary.setTotalTransactionAmount(getBigDecimalValue(summaryData, "totalTransactionAmount"));
+        summary.setTotalSettlementReceived(getBigDecimalValue(summaryData, "totalSettlementReceived"));
+        summary.setTotalChargesPaid(getBigDecimalValue(summaryData, "totalChargesPaid"));
+
+        // Payout data
+        summary.setPayoutCount(getLongValue(summaryData, "payoutCount"));
+        summary.setTotalPayoutAmount(getBigDecimalValue(summaryData, "totalPayoutAmount"));
+        summary.setTotalPayoutFees(getBigDecimalValue(summaryData, "totalPayoutFees"));
+        summary.setSuccessfulPayouts(getLongValue(summaryData, "successfulPayouts"));
+        summary.setFailedPayouts(getLongValue(summaryData, "failedPayouts"));
+        summary.setPendingPayouts(getLongValue(summaryData, "pendingPayouts"));
+
+        // Refund data
+        summary.setRefundCount(getLongValue(summaryData, "refundCount"));
+        summary.setTotalRefundAmount(getBigDecimalValue(summaryData, "totalRefundAmount"));
+
+        // Net position
+        summary.setNetCreditAmount(getBigDecimalValue(summaryData, "netCreditAmount"));
+        summary.setNetDebitAmount(getBigDecimalValue(summaryData, "netDebitAmount"));
+        summary.setNetBalance(getBigDecimalValue(summaryData, "netBalance"));
+
+        // Overall stats
+        summary.setTotalTransactions(getLongValue(summaryData, "totalTransactions"));
+        summary.setSuccessCount(getLongValue(summaryData, "successCount"));
+        summary.setFailureCount(getLongValue(summaryData, "failureCount"));
+        summary.setPendingCount(getLongValue(summaryData, "pendingCount"));
+
+        return summary;
+    }
+
 
     /**
      * Get enhanced franchise merchant performance
@@ -928,49 +990,6 @@ public class TransactionReportService {
                 Math.min(request.getSize(), MAX_PAGE_SIZE));
     }
 
-    private TransactionDetailResponse mapToTransactionDetailResponse(MerchantTransactionDetails entity) {
-        TransactionDetailResponse response = new TransactionDetailResponse();
-        response.setTransactionId(entity.getTransactionId());
-        response.setTransactionDate(entity.getTransactionDate());
-        response.setAmount(entity.getAmount());
-        response.setNetAmount(entity.getNetAmount());
-        response.setCharge(entity.getCharge());
-        response.setVendorName(entity.getVendorName());
-        response.setTransactionType(entity.getTransactionType());
-        response.setStatus(entity.getTranStatus());
-        response.setNarration(entity.getNarration());
-        response.setCardHolderName(entity.getCardHolderName());
-        response.setMobileNo(entity.getMobileNo());
-        response.setBankRefId(entity.getBankRefId());
-        response.setOperatorName(entity.getOperatorName());
-        response.setRemarks(entity.getRemarks());
-        return response;
-    }
-
-    private TransactionDetailResponse mapToTransactionDetailResponse(FranchiseTransactionDetails entity) {
-        TransactionDetailResponse response = new TransactionDetailResponse();
-        response.setTransactionId(entity.getTransactionId());
-        response.setTransactionDate(entity.getTransactionDate());
-        response.setAmount(entity.getAmount());
-        response.setNetAmount(entity.getNetAmount());
-        response.setCharge(entity.getAmount().subtract(entity.getNetAmount())); // Commission as charge
-        response.setVendorName(entity.getVendorName());
-        response.setTransactionType(entity.getTransactionType());
-        response.setStatus(entity.getTranStatus());
-        response.setNarration(entity.getNarration());
-        response.setCardHolderName(entity.getCardHolderName());
-        response.setMobileNo(entity.getMobileNo());
-        response.setBankRefId(entity.getBankRefId());
-        response.setOperatorName(entity.getOperatorName());
-        response.setRemarks(entity.getRemarks());
-        return response;
-    }
-
-    private TransactionSummary buildTransactionSummary(Map<String, Object> summaryData) {
-        TransactionSummary summary = new TransactionSummary();
-        populateBasicSummary(summary, summaryData);
-        return summary;
-    }
 
     private void populateBasicSummary(TransactionSummary summary, Map<String, Object> summaryData) {
         summary.setTotalTransactions(getLongValue(summaryData, "totalTransactions"));
@@ -993,604 +1012,40 @@ public class TransactionReportService {
         }
     }
 
-    private CommissionBreakdown calculateCommissionBreakdown(Map<String, Object> summaryData) {
-        CommissionBreakdown breakdown = new CommissionBreakdown();
 
-        BigDecimal totalCommission = getBigDecimalValue(summaryData, "totalCommission");
-        BigDecimal totalAmount = getBigDecimalValue(summaryData, "totalAmount");
-        Long activeMerchants = getLongValue(summaryData, "activeMerchants");
-
-        breakdown.setGrossCommission(totalCommission);
-        breakdown.setNetCommission(totalCommission); // Assuming no deductions for simplicity
-        breakdown.setMerchantCount(activeMerchants);
-
-        // Calculate commission rate
-        if (totalAmount.compareTo(BigDecimal.ZERO) > 0) {
-            BigDecimal rate = totalCommission.multiply(BigDecimal.valueOf(100))
-                    .divide(totalAmount, 4, RoundingMode.HALF_UP);
-            breakdown.setCommissionRate(rate);
-        } else {
-            breakdown.setCommissionRate(BigDecimal.ZERO);
-        }
-
-        // Calculate average commission per merchant
-        if (activeMerchants > 0) {
-            BigDecimal avgCommission = totalCommission.divide(
-                    BigDecimal.valueOf(activeMerchants), 2, RoundingMode.HALF_UP);
-            breakdown.setAverageCommissionPerMerchant(avgCommission);
-        } else {
-            breakdown.setAverageCommissionPerMerchant(BigDecimal.ZERO);
-        }
-
-        return breakdown;
-    }
 
     private BigDecimal getBigDecimalValue(Map<String, Object> map, String key) {
         Object value = map.get(key);
         if (value == null) return BigDecimal.ZERO;
-        if (value instanceof BigDecimal) return (BigDecimal) value;
-        if (value instanceof Number) return BigDecimal.valueOf(((Number) value).doubleValue());
+
+        if (value instanceof BigDecimal) {
+            return (BigDecimal) value;
+        }
+        if (value instanceof BigInteger) {
+            return new BigDecimal((BigInteger) value);
+        }
+        if (value instanceof Number) {
+            return BigDecimal.valueOf(((Number) value).doubleValue());
+        }
+
         return BigDecimal.ZERO;
     }
 
     private Long getLongValue(Map<String, Object> map, String key) {
         Object value = map.get(key);
         if (value == null) return 0L;
+
         if (value instanceof Long) return (Long) value;
-        if (value instanceof Number) return ((Number) value).longValue();
+
+        if (value instanceof BigInteger) {
+            return ((BigInteger) value).longValue();
+        }
+
+        if (value instanceof Number) {
+            return ((Number) value).longValue();
+        }
+
         return 0L;
     }
 
-
-    /**
-     * Get comprehensive transaction details report
-     */
-    public Page<DetailedTransactionReportDTO> getDetailedTransactionReport(
-            LocalDateTime startDate,
-            LocalDateTime endDate,
-            Long franchiseId,
-            Long merchantId,
-            String status,
-            String cardType,
-            String brandType,
-            Pageable pageable) {
-
-        Page<Object[]> results = franchiseTransactionRepository.getDetailedTransactionReport(
-                startDate, endDate, franchiseId, merchantId, status, cardType, brandType, pageable);
-
-        List<DetailedTransactionReportDTO> reportData = results.getContent().stream()
-                .map(this::mapToDetailedTransactionDTO)
-                .collect(Collectors.toList());
-
-        return new PageImpl<>(reportData, pageable, results.getTotalElements());
-    }
-
-    /**
-     * Get detailed transaction report based on settlement date
-     */
-    public Page<DetailedTransactionReportDTO> getDetailedTransactionReportBySettlementDate(
-            LocalDateTime startDate,
-            LocalDateTime endDate,
-            Long franchiseId,
-            Long merchantId,
-            String status,
-            String cardType,
-            String brandType,
-            Pageable pageable) {
-
-        Page<Object[]> results = franchiseTransactionRepository.getDetailedTransactionReportBySettlementDate(
-                startDate, endDate, franchiseId, merchantId, status, cardType, brandType, pageable);
-
-        List<DetailedTransactionReportDTO> reportData = results.getContent().stream()
-                .map(this::mapToDetailedTransactionDTO)
-                .collect(Collectors.toList());
-
-        return new PageImpl<>(reportData, pageable, results.getTotalElements());
-    }
-
-    /**
-     * Get card type and brand summary
-     */
-    public List<CardTypeBrandSummaryDTO> getCardTypeBrandSummary(
-            LocalDateTime startDate,
-            LocalDateTime endDate,
-            Long franchiseId) {
-
-        List<Object[]> results = franchiseTransactionRepository.getCardTypeBrandSummary(
-                startDate, endDate, franchiseId);
-
-        return results.stream()
-                .map(this::mapToCardTypeBrandSummaryDTO)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Get daily transaction summary
-     */
-    public List<DailySummaryReportDTO> getDailySummaryReport(
-            LocalDateTime startDate,
-            LocalDateTime endDate,
-            Long franchiseId) {
-
-        List<Object[]> results = franchiseTransactionRepository.getDailySummaryReport(
-                startDate, endDate, franchiseId);
-
-        return results.stream()
-                .map(this::mapToDailySummaryDTO)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Get merchant wise detailed performance
-     */
-    public List<MerchantPerformanceDTO> getMerchantWiseDetailedPerformance(
-            LocalDateTime startDate,
-            LocalDateTime endDate,
-            Long franchiseId) {
-
-        List<Object[]> results = franchiseTransactionRepository.getMerchantWiseDetailedPerformance(
-                startDate, endDate, franchiseId);
-
-        return results.stream()
-                .map(this::mapToMerchantPerformanceDTO)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Get franchise comparison report
-     */
-    public List<FranchiseComparisonDTO> getFranchiseComparisonReport(
-            LocalDateTime startDate,
-            LocalDateTime endDate) {
-
-        List<Object[]> results = franchiseTransactionRepository.getFranchiseComparisonReport(
-                startDate, endDate);
-
-        return results.stream()
-                .map(this::mapToFranchiseComparisonDTO)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Get terminal wise analysis
-     */
-    public List<TerminalAnalysisDTO> getTerminalWiseAnalysis(
-            LocalDateTime startDate,
-            LocalDateTime endDate,
-            Long franchiseId,
-            Long merchantId) {
-
-        List<Object[]> results = franchiseTransactionRepository.getTerminalWiseAnalysis(
-                startDate, endDate, franchiseId, merchantId);
-
-        return results.stream()
-                .map(this::mapToTerminalAnalysisDTO)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Get hourly transaction trend
-     */
-    public List<HourlyTrendDTO> getHourlyTransactionTrend(
-            LocalDateTime startDate,
-            LocalDateTime endDate,
-            Long franchiseId) {
-
-        List<Object[]> results = franchiseTransactionRepository.getHourlyTransactionTrend(
-                startDate, endDate, franchiseId);
-
-        return results.stream()
-                .map(this::mapToHourlyTrendDTO)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Get failed transaction analysis
-     */
-    public Page<FailedTransactionDTO> getFailedTransactionAnalysis(
-            LocalDateTime startDate,
-            LocalDateTime endDate,
-            Long franchiseId,
-            Long merchantId,
-            Pageable pageable) {
-
-        Page<Object[]> results = franchiseTransactionRepository.getFailedTransactionAnalysis(
-                startDate, endDate, franchiseId, merchantId, pageable);
-
-        List<FailedTransactionDTO> reportData = results.getContent().stream()
-                .map(this::mapToFailedTransactionDTO)
-                .collect(Collectors.toList());
-
-        return new PageImpl<>(reportData, pageable, results.getTotalElements());
-    }
-
-    /**
-     * Get settlement delay analysis
-     */
-    public List<SettlementDelayAnalysisDTO> getSettlementDelayAnalysis(
-            LocalDateTime startDate,
-            LocalDateTime endDate,
-            Long franchiseId) {
-
-        List<Object[]> results = franchiseTransactionRepository.getSettlementDelayAnalysis(
-                startDate, endDate, franchiseId);
-
-        return results.stream()
-                .map(this::mapToSettlementDelayDTO)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Get transaction summary statistics
-     */
-    public TransactionSummaryDTO getTransactionSummary(
-            LocalDateTime startDate,
-            LocalDateTime endDate,
-            Long franchiseId,
-            String status,
-            String transactionType) {
-
-        Map<String, Object> summaryData = franchiseTransactionRepository.getFranchiseTransactionSummary(
-                startDate, endDate, franchiseId, status, transactionType);
-
-        return mapToTransactionSummaryDTO(summaryData);
-    }
-
-    //// 22-09-25 - with detailed fields
-    /**
-     * Get merchant-only transaction details by transaction date
-     */
-    public Page<DetailedTransactionReportDTO> getMerchantOnlyTransactionDetails(
-            LocalDateTime startDate,
-            LocalDateTime endDate,
-            Long merchantId,
-            String status,
-            String cardType,
-            String brandType,
-            Pageable pageable) {
-
-        Page<Object[]> results = merchantTransactionRepository.getMerchantTransactionReportByTxnDate(
-                startDate, endDate, merchantId, status, cardType, brandType, pageable);
-
-        List<DetailedTransactionReportDTO> reportData = results.getContent().stream()
-                .map(this::mapMerchantOnlyToDetailedTransactionDTO)
-                .collect(Collectors.toList());
-
-        return new PageImpl<>(reportData, pageable, results.getTotalElements());
-    }
-
-    /**
-     * Get merchant-only transaction details by settlement date
-     */
-    public Page<DetailedTransactionReportDTO> getMerchantOnlyTransactionDetailsBySettlementDate(
-            LocalDateTime startDate,
-            LocalDateTime endDate,
-            Long merchantId,
-            String status,
-            String cardType,
-            String brandType,
-            Pageable pageable) {
-
-        Page<Object[]> results = merchantTransactionRepository.getMerchantTransactionReportBySettleDate(
-                startDate, endDate, merchantId, status, cardType, brandType, pageable);
-
-        List<DetailedTransactionReportDTO> reportData = results.getContent().stream()
-                .map(this::mapMerchantOnlyToDetailedTransactionDTO)
-                .collect(Collectors.toList());
-
-        return new PageImpl<>(reportData, pageable, results.getTotalElements());
-    }
-
-    /**
-     * Get merchant-only card type brand summary by transaction date
-     */
-    public List<CardTypeBrandSummaryDTO> getMerchantOnlyCardTypeBrandSummary(
-            LocalDateTime startDate,
-            LocalDateTime endDate,
-            Long merchantId) {
-
-        List<Object[]> results = merchantTransactionRepository.getMerchantCardTypeBrandSummaryByTxnDate(
-                startDate, endDate, merchantId);
-
-        return results.stream()
-                .map(this::mapMerchantOnlyToCardTypeBrandSummaryDTO)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Get merchant-only card type brand summary by settlement date
-     */
-    public List<CardTypeBrandSummaryDTO> getMerchantOnlyCardTypeBrandSummaryBySettlementDate(
-            LocalDateTime startDate,
-            LocalDateTime endDate,
-            Long merchantId) {
-
-        List<Object[]> results = merchantTransactionRepository.getMerchantCardTypeBrandSummaryBySettleDate(
-                startDate, endDate, merchantId);
-
-        return results.stream()
-                .map(this::mapMerchantOnlyToCardTypeBrandSummaryDTO)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Get merchant-only daily summary by transaction date
-     */
-    public List<DailySummaryReportDTO> getMerchantOnlyDailySummary(
-            LocalDateTime startDate,
-            LocalDateTime endDate,
-            Long merchantId) {
-
-        List<Object[]> results = merchantTransactionRepository.getMerchantDailySummaryByTxnDate(
-                startDate, endDate, merchantId);
-
-        return results.stream()
-                .map(this::mapMerchantOnlyToDailySummaryDTO)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Get merchant-only daily summary by settlement date
-     */
-    public List<DailySummaryReportDTO> getMerchantOnlyDailySummaryBySettlementDate(
-            LocalDateTime startDate,
-            LocalDateTime endDate,
-            Long merchantId) {
-
-        List<Object[]> results = merchantTransactionRepository.getMerchantDailySummaryBySettleDate(
-                startDate, endDate, merchantId);
-
-        return results.stream()
-                .map(this::mapMerchantOnlyToDailySummaryDTO)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Get merchant-only terminal analysis by transaction date
-     */
-    public List<TerminalAnalysisDTO> getMerchantOnlyTerminalAnalysis(
-            LocalDateTime startDate,
-            LocalDateTime endDate,
-            Long merchantId) {
-
-        List<Object[]> results = merchantTransactionRepository.getTerminalWiseAnalysisByTxnDate(
-                startDate, endDate, merchantId);
-
-        return results.stream()
-                .map(this::mapMerchantOnlyToTerminalAnalysisDTO)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Get merchant-only terminal analysis by settlement date
-     */
-    public List<TerminalAnalysisDTO> getMerchantOnlyTerminalAnalysisBySettlementDate(
-            LocalDateTime startDate,
-            LocalDateTime endDate,
-            Long merchantId) {
-
-        List<Object[]> results = merchantTransactionRepository.getTerminalWiseAnalysisBySettleDate(
-                startDate, endDate, merchantId);
-
-        return results.stream()
-                .map(this::mapMerchantOnlyToTerminalAnalysisDTO)
-                .collect(Collectors.toList());
-    }
-
-    // Private mapping methods for merchant-only data
-    private DetailedTransactionReportDTO mapMerchantOnlyToDetailedTransactionDTO(Object[] row) {
-        DetailedTransactionReportDTO dto = new DetailedTransactionReportDTO();
-        dto.setTxnDate((LocalDateTime) row[0]);
-        dto.setTxnAmount((BigDecimal) row[1]);
-        dto.setSettleDate((LocalDateTime) row[2]);
-        dto.setAuthCode((String) row[3]);
-        dto.setTid((String) row[4]);
-        dto.setSettlementPercentage(row[5] != null ? ((Number) row[5]).doubleValue() : 0.0);
-        dto.setSettleAmount((BigDecimal) row[6]);
-        dto.setRetailorMDR((BigDecimal) row[7]); // system fee
-        dto.setRetailorPercentage(row[8] != null ? ((Number) row[8]).doubleValue() : 0.0);
-        dto.setCommissionAmount(BigDecimal.ZERO); // No commission for merchant-only
-        dto.setCardType((String) row[9]);
-        dto.setBrandType((String) row[10]);
-        dto.setCardClassification((String) row[11]);
-        dto.setMerchantName((String) row[12]);
-        dto.setFranchiseName(null); // No franchise for merchant-only
-        dto.setState(null); // State not available in merchant query
-        return dto;
-    }
-
-    private CardTypeBrandSummaryDTO mapMerchantOnlyToCardTypeBrandSummaryDTO(Object[] row) {
-        CardTypeBrandSummaryDTO dto = new CardTypeBrandSummaryDTO();
-        dto.setCardType((String) row[0]);
-        dto.setBrandType((String) row[1]);
-        dto.setTransactionCount(((Number) row[2]).longValue());
-        dto.setTotalAmount((BigDecimal) row[3]);
-        dto.setTotalSettleAmount((BigDecimal) row[4]);
-        dto.setTotalCommission(BigDecimal.ZERO); // No commission for merchant-only
-        dto.setTotalMDR((BigDecimal) row[5]);
-        dto.setAverageAmount((BigDecimal) row[6]);
-        dto.setAverageMDRPercentage(row[7] != null ? ((Number) row[7]).doubleValue() : 0.0);
-        return dto;
-    }
-
-    private DailySummaryReportDTO mapMerchantOnlyToDailySummaryDTO(Object[] row) {
-        DailySummaryReportDTO dto = new DailySummaryReportDTO();
-        dto.setTxnDate(((java.sql.Date) row[0]).toLocalDate().atStartOfDay());
-        dto.setTotalTransactions(((Number) row[1]).longValue());
-        dto.setTotalAmount((BigDecimal) row[2]);
-        dto.setTotalSettleAmount((BigDecimal) row[3]);
-        dto.setTotalCommission(BigDecimal.ZERO); // No commission for merchant-only
-        dto.setTotalMDR((BigDecimal) row[4]);
-        dto.setSettledCount(((Number) row[5]).longValue());
-        dto.setFailedCount(((Number) row[6]).longValue());
-        dto.setAverageAmount((BigDecimal) row[7]);
-        dto.setUniqueMerchants(((Number) row[8]).longValue());
-        return dto;
-    }
-
-    private TerminalAnalysisDTO mapMerchantOnlyToTerminalAnalysisDTO(Object[] row) {
-        TerminalAnalysisDTO dto = new TerminalAnalysisDTO();
-        dto.setTerminalId((String) row[0]);
-        dto.setMerchantName((String) row[1]);
-        dto.setFranchiseName(null); // No franchise for merchant-only
-        dto.setTransactionCount(((Number) row[2]).longValue());
-        dto.setTotalAmount((BigDecimal) row[3]);
-        dto.setTotalSettleAmount((BigDecimal) row[4]);
-        dto.setTotalCommission(BigDecimal.ZERO); // No commission for merchant-only
-        dto.setAverageAmount((BigDecimal) row[6]);
-        dto.setSuccessCount(((Number) row[7]).longValue());
-        dto.setFailureCount(((Number) row[8]).longValue());
-        return dto;
-    }
-    ////
-    // Private mapping methods
-    private DetailedTransactionReportDTO mapToDetailedTransactionDTO(Object[] row) {
-        DetailedTransactionReportDTO dto = new DetailedTransactionReportDTO();
-        dto.setTxnDate((LocalDateTime) row[0]);
-        dto.setTxnAmount((BigDecimal) row[1]);
-        dto.setSettleDate((LocalDateTime) row[2]);
-        dto.setAuthCode((String) row[3]);
-        dto.setTid((String) row[4]);
-        dto.setSettlementPercentage(row[5] != null ? ((Number) row[5]).doubleValue() : 0.0);
-        dto.setSettleAmount((BigDecimal) row[6]);
-        dto.setRetailorMDR((BigDecimal) row[7]);
-        dto.setRetailorPercentage(row[8] != null ? ((Number) row[8]).doubleValue() : 0.0);
-        dto.setCommissionAmount((BigDecimal) row[9]);
-        dto.setCardType((String) row[10]);
-        dto.setBrandType((String) row[11]);
-        dto.setCardClassification((String) row[12]);
-        dto.setMerchantName((String) row[13]);
-        dto.setFranchiseName((String) row[14]);
-        dto.setState((String) row[15]);
-        return dto;
-    }
-
-    private CardTypeBrandSummaryDTO mapToCardTypeBrandSummaryDTO(Object[] row) {
-        CardTypeBrandSummaryDTO dto = new CardTypeBrandSummaryDTO();
-        dto.setCardType((String) row[0]);
-        dto.setBrandType((String) row[1]);
-        dto.setTransactionCount(((Number) row[2]).longValue());
-        dto.setTotalAmount((BigDecimal) row[3]);
-        dto.setTotalSettleAmount((BigDecimal) row[4]);
-        dto.setTotalCommission((BigDecimal) row[5]);
-        dto.setTotalMDR((BigDecimal) row[6]);
-        dto.setAverageAmount((BigDecimal) row[7]);
-        dto.setAverageMDRPercentage(row[8] != null ? ((Number) row[8]).doubleValue() : 0.0);
-        return dto;
-    }
-
-    private DailySummaryReportDTO mapToDailySummaryDTO(Object[] row) {
-        DailySummaryReportDTO dto = new DailySummaryReportDTO();
-        dto.setTxnDate(((java.sql.Date) row[0]).toLocalDate().atStartOfDay());
-        dto.setTotalTransactions(((Number) row[1]).longValue());
-        dto.setTotalAmount((BigDecimal) row[2]);
-        dto.setTotalSettleAmount((BigDecimal) row[3]);
-        dto.setTotalCommission((BigDecimal) row[4]);
-        dto.setTotalMDR((BigDecimal) row[5]);
-        dto.setSettledCount(((Number) row[6]).longValue());
-        dto.setFailedCount(((Number) row[7]).longValue());
-        dto.setAverageAmount((BigDecimal) row[8]);
-        dto.setUniqueMerchants(((Number) row[9]).longValue());
-        return dto;
-    }
-
-    private MerchantPerformanceDTO mapToMerchantPerformanceDTO(Object[] row) {
-        MerchantPerformanceDTO dto = new MerchantPerformanceDTO();
-        dto.setMerchantId(((Number) row[0]).longValue());
-        dto.setMerchantName((String) row[1]);
-        dto.setTransactionCount(((Number) row[2]).longValue());
-        dto.setTotalAmount((BigDecimal) row[3]);
-        dto.setTotalSettleAmount((BigDecimal) row[4]);
-        dto.setTotalCommission((BigDecimal) row[5]);
-        dto.setTotalMDR((BigDecimal) row[6]);
-        dto.setAverageAmount((BigDecimal) row[7]);
-        dto.setSuccessCount(((Number) row[8]).longValue());
-        dto.setFailureCount(((Number) row[9]).longValue());
-        dto.setSuccessRate(row[10] != null ? ((Number) row[10]).doubleValue() : 0.0);
-        return dto;
-    }
-
-    private FranchiseComparisonDTO mapToFranchiseComparisonDTO(Object[] row) {
-        FranchiseComparisonDTO dto = new FranchiseComparisonDTO();
-        dto.setFranchiseId(((Number) row[0]).longValue());
-        dto.setFranchiseName((String) row[1]);
-        dto.setState((String) row[2]);
-        dto.setTransactionCount(((Number) row[3]).longValue());
-        dto.setTotalAmount((BigDecimal) row[4]);
-        dto.setTotalSettleAmount((BigDecimal) row[5]);
-        dto.setTotalCommission((BigDecimal) row[6]);
-        dto.setUniqueMerchants(((Number) row[7]).longValue());
-        dto.setAverageAmount((BigDecimal) row[8]);
-        dto.setSuccessCount(((Number) row[9]).longValue());
-        dto.setSuccessRate(row[10] != null ? ((Number) row[10]).doubleValue() : 0.0);
-        return dto;
-    }
-
-    private TerminalAnalysisDTO mapToTerminalAnalysisDTO(Object[] row) {
-        TerminalAnalysisDTO dto = new TerminalAnalysisDTO();
-        dto.setTerminalId((String) row[0]);
-        dto.setMerchantName((String) row[1]);
-        dto.setFranchiseName((String) row[2]);
-        dto.setTransactionCount(((Number) row[3]).longValue());
-        dto.setTotalAmount((BigDecimal) row[4]);
-        dto.setTotalSettleAmount((BigDecimal) row[5]);
-        dto.setTotalCommission((BigDecimal) row[6]);
-        dto.setAverageAmount((BigDecimal) row[7]);
-        dto.setSuccessCount(((Number) row[8]).longValue());
-        dto.setFailureCount(((Number) row[9]).longValue());
-        return dto;
-    }
-
-    private HourlyTrendDTO mapToHourlyTrendDTO(Object[] row) {
-        HourlyTrendDTO dto = new HourlyTrendDTO();
-        dto.setTxnDate(((java.sql.Timestamp) row[0]).toLocalDateTime());
-        dto.setTxnHour(((Number) row[1]).intValue());
-        dto.setTransactionCount(((Number) row[2]).longValue());
-        dto.setTotalAmount((BigDecimal) row[3]);
-        dto.setAverageAmount((BigDecimal) row[4]);
-        dto.setSuccessCount(((Number) row[5]).longValue());
-        return dto;
-    }
-
-    private FailedTransactionDTO mapToFailedTransactionDTO(Object[] row) {
-        FailedTransactionDTO dto = new FailedTransactionDTO();
-        dto.setTransactionDate((LocalDateTime) row[0]);
-        dto.setAmount((BigDecimal) row[1]);
-        dto.setTranStatus((String) row[2]);
-        dto.setFailureRemarks((String) row[3]);
-        dto.setErrorCode((String) row[4]);
-        dto.setPgErrorMessage((String) row[5]);
-        dto.setTid((String) row[6]);
-        dto.setCardType((String) row[7]);
-        dto.setBrandType((String) row[8]);
-        dto.setMerchantName((String) row[9]);
-        dto.setFranchiseName((String) row[10]);
-        return dto;
-    }
-
-    private SettlementDelayAnalysisDTO mapToSettlementDelayDTO(Object[] row) {
-        SettlementDelayAnalysisDTO dto = new SettlementDelayAnalysisDTO();
-        dto.setTransactionDate((LocalDateTime) row[0]);
-        dto.setSettlementDate((LocalDateTime) row[1]);
-        dto.setSettlementDelayHours(row[2] != null ? ((Number) row[2]).longValue() : 0L);
-        dto.setAmount((BigDecimal) row[3]);
-        dto.setNetAmount((BigDecimal) row[4]);
-        dto.setTid((String) row[5]);
-        dto.setMerchantName((String) row[6]);
-        dto.setFranchiseName((String) row[7]);
-        return dto;
-    }
-
-    private TransactionSummaryDTO mapToTransactionSummaryDTO(Map<String, Object> summaryData) {
-        TransactionSummaryDTO dto = new TransactionSummaryDTO();
-        dto.setTotalTransactions(((Number) summaryData.get("totalTransactions")).longValue());
-        dto.setTotalAmount((BigDecimal) summaryData.get("totalAmount"));
-        dto.setTotalCommission((BigDecimal) summaryData.get("totalCommission"));
-        dto.setTotalNetAmount((BigDecimal) summaryData.get("totalNetAmount"));
-        dto.setAverageAmount((BigDecimal) summaryData.get("averageAmount"));
-        dto.setSuccessCount(((Number) summaryData.get("successCount")).longValue());
-        dto.setFailureCount(((Number) summaryData.get("failureCount")).longValue());
-        dto.setActiveMerchants(((Number) summaryData.get("activeMerchants")).longValue());
-        return dto;
-    }
 }

@@ -66,7 +66,7 @@ public interface MerchantTransDetRepository extends JpaRepository<MerchantTransa
             "mtd.updatedDateAndTimeOfTransaction, vt.authCode, vt.tid, " +
             "mtd.netAmount, mtd.grossCharge, ftd.netAmount, mtd.charge, " + // left join ftd for franchise commission
             "vt.brandType, vt.cardType, vt.cardClassification, " +
-            "mtd.merchant.businessName, ftd.franchise.franchiseName, mtd.tranStatus) " +
+            "mtd.merchant.businessName, ftd.franchise.franchiseName, mtd.tranStatus, mtd.service) " +
             "FROM MerchantTransactionDetails mtd " +
             "LEFT JOIN VendorTransactions vt ON vt.transactionReferenceId = mtd.vendorTransactionId " +
             "LEFT JOIN FranchiseTransactionDetails ftd ON ftd.vendorTransactionId = mtd.vendorTransactionId " +
@@ -89,7 +89,7 @@ public interface MerchantTransDetRepository extends JpaRepository<MerchantTransa
             "mtd.updatedDateAndTimeOfTransaction, vt.authCode, vt.tid, " +
             "mtd.netAmount, mtd.grossCharge, ftd.netAmount, mtd.charge, " +
             "vt.brandType, vt.cardType, vt.cardClassification, " +
-            "mtd.merchant.businessName, ftd.franchise.franchiseName, mtd.tranStatus) " +
+            "mtd.merchant.businessName, ftd.franchise.franchiseName, mtd.tranStatus, mtd.service) " +
             "FROM MerchantTransactionDetails mtd " +
             "LEFT JOIN VendorTransactions vt ON vt.transactionReferenceId = mtd.vendorTransactionId " +
             "LEFT JOIN FranchiseTransactionDetails ftd ON ftd.vendorTransactionId = mtd.vendorTransactionId " +
@@ -108,18 +108,43 @@ public interface MerchantTransDetRepository extends JpaRepository<MerchantTransa
             Pageable pageable);
 
 
+    // ============================================================================
+// MERCHANT TRANSACTION REPOSITORY
+// ============================================================================
+
     @Query("SELECT " +
+            // Settlement transactions (CREDIT)
+            "COUNT(CASE WHEN mtd.transactionType = 'CREDIT' AND mtd.service = 'Settlement' THEN 1 END) as settlementCount, " +
+            "COALESCE(SUM(CASE WHEN mtd.transactionType = 'CREDIT' AND mtd.service = 'Settlement' THEN mtd.amount END), 0) as totalTransactionAmount, " +
+            "COALESCE(SUM(CASE WHEN mtd.transactionType = 'CREDIT' AND mtd.service = 'Settlement' THEN mtd.netAmount END), 0) as totalSettlementReceived, " +
+            "COALESCE(SUM(CASE WHEN mtd.transactionType = 'CREDIT' AND mtd.service = 'Settlement' THEN mtd.grossCharge END), 0) as totalChargesPaid, " +
+
+            // Payout transactions (DEBIT)
+            "COUNT(CASE WHEN mtd.service = 'PAYOUT' THEN 1 END) as payoutCount, " +
+            "COALESCE(SUM(CASE WHEN mtd.service = 'PAYOUT' THEN ABS(mtd.netAmount) END), 0) as totalPayoutAmount, " +
+            "COALESCE(SUM(CASE WHEN mtd.service = 'PAYOUT' THEN ABS(mtd.amount - mtd.netAmount) END), 0) as totalPayoutFees, " +
+            "COUNT(CASE WHEN mtd.service = 'PAYOUT' AND mtd.tranStatus = 'SUCCESS' THEN 1 END) as successfulPayouts, " +
+            "COUNT(CASE WHEN mtd.service = 'PAYOUT' AND mtd.tranStatus = 'FAILED' THEN 1 END) as failedPayouts, " +
+            "COUNT(CASE WHEN mtd.service = 'PAYOUT' AND mtd.tranStatus = 'PENDING' THEN 1 END) as pendingPayouts, " +
+
+            // Refund transactions
+            "COUNT(CASE WHEN mtd.service = 'PAYOUT_REFUND' THEN 1 END) as refundCount, " +
+            "COALESCE(SUM(CASE WHEN mtd.service = 'PAYOUT_REFUND' THEN mtd.amount END), 0) as totalRefundAmount, " +
+
+            // Net position
+            "COALESCE(SUM(CASE WHEN mtd.transactionType = 'CREDIT' THEN mtd.amount END), 0) as netCreditAmount, " +
+            "COALESCE(SUM(CASE WHEN mtd.transactionType = 'DEBIT' THEN mtd.amount END), 0) as netDebitAmount, " +
+            "COALESCE(SUM(mtd.amount), 0) as netBalance, " +
+
+            // Overall stats
             "COUNT(mtd) as totalTransactions, " +
-            "COALESCE(SUM(mtd.amount), 0) as totalAmount, " +
-            "COALESCE(SUM(mtd.netAmount), 0) as totalNetAmount, " +
-            "COALESCE(SUM(mtd.charge), 0) as totalCharges, " +
-            "COALESCE(AVG(mtd.amount), 0) as averageAmount, " +
-            "COUNT(CASE WHEN mtd.tranStatus = 'SETTLED' THEN 1 END) as successCount, " +
-            "COUNT(CASE WHEN mtd.tranStatus != 'SETTLED' THEN 1 END) as failureCount " +
+            "COUNT(CASE WHEN mtd.tranStatus IN ('SUCCESS', 'SETTLED') THEN 1 END) as successCount, " +
+            "COUNT(CASE WHEN mtd.tranStatus = 'FAILED' THEN 1 END) as failureCount, " +
+            "COUNT(CASE WHEN mtd.tranStatus = 'PENDING' THEN 1 END) as pendingCount " +
+
             "FROM MerchantTransactionDetails mtd WHERE " +
             "mtd.transactionDate BETWEEN :startDate AND :endDate " +
             "AND (:merchantId IS NULL OR mtd.merchant.id = :merchantId) " +
-            //"AND (:status IS NULL OR mtd.tranStatus = :status) " +
             "AND (:transactionType IS NULL OR mtd.transactionType = :transactionType)")
     Map<String, Object> getMerchantTransactionSummary(
             @Param("startDate") LocalDateTime startDate,
@@ -128,19 +153,40 @@ public interface MerchantTransDetRepository extends JpaRepository<MerchantTransa
             @Param("status") String status,
             @Param("transactionType") String transactionType);
 
-    // Summary based on settlement date
+    // Settlement date version
     @Query("SELECT " +
+            // Settlement transactions (CREDIT)
+            "COUNT(CASE WHEN mtd.transactionType = 'CREDIT' AND mtd.service = 'Settlement' THEN 1 END) as settlementCount, " +
+            "COALESCE(SUM(CASE WHEN mtd.transactionType = 'CREDIT' AND mtd.service = 'Settlement' THEN mtd.amount END), 0) as totalTransactionAmount, " +
+            "COALESCE(SUM(CASE WHEN mtd.transactionType = 'CREDIT' AND mtd.service = 'Settlement' THEN mtd.netAmount END), 0) as totalSettlementReceived, " +
+            "COALESCE(SUM(CASE WHEN mtd.transactionType = 'CREDIT' AND mtd.service = 'Settlement' THEN mtd.grossCharge END), 0) as totalChargesPaid, " +
+
+            // Payout transactions (DEBIT)
+            "COUNT(CASE WHEN mtd.service = 'PAYOUT' THEN 1 END) as payoutCount, " +
+            "COALESCE(SUM(CASE WHEN mtd.service = 'PAYOUT' THEN ABS(mtd.netAmount) END), 0) as totalPayoutAmount, " +
+            "COALESCE(SUM(CASE WHEN mtd.service = 'PAYOUT' THEN ABS(mtd.amount - mtd.netAmount) END), 0) as totalPayoutFees, " +
+            "COUNT(CASE WHEN mtd.service = 'PAYOUT' AND mtd.tranStatus = 'SUCCESS' THEN 1 END) as successfulPayouts, " +
+            "COUNT(CASE WHEN mtd.service = 'PAYOUT' AND mtd.tranStatus = 'FAILED' THEN 1 END) as failedPayouts, " +
+            "COUNT(CASE WHEN mtd.service = 'PAYOUT' AND mtd.tranStatus = 'PENDING' THEN 1 END) as pendingPayouts, " +
+
+            // Refund transactions
+            "COUNT(CASE WHEN mtd.service = 'PAYOUT_REFUND' THEN 1 END) as refundCount, " +
+            "COALESCE(SUM(CASE WHEN mtd.service = 'PAYOUT_REFUND' THEN mtd.amount END), 0) as totalRefundAmount, " +
+
+            // Net position
+            "COALESCE(SUM(CASE WHEN mtd.transactionType = 'CREDIT' THEN mtd.amount END), 0) as netCreditAmount, " +
+            "COALESCE(SUM(CASE WHEN mtd.transactionType = 'DEBIT' THEN mtd.amount END), 0) as netDebitAmount, " +
+            "COALESCE(SUM(mtd.amount), 0) as netBalance, " +
+
+            // Overall stats
             "COUNT(mtd) as totalTransactions, " +
-            "COALESCE(SUM(mtd.amount), 0) as totalAmount, " +
-            "COALESCE(SUM(mtd.netAmount), 0) as totalNetAmount, " +
-            "COALESCE(SUM(mtd.grossCharge), 0) as totalCharges, " +
-            "COALESCE(AVG(mtd.amount), 0) as averageAmount, " +
-            "COUNT(CASE WHEN mtd.tranStatus = 'SETTLED' THEN 1 END) as successCount, " +
-            "COUNT(CASE WHEN mtd.tranStatus != 'SETTLED' THEN 1 END) as failureCount " +
+            "COUNT(CASE WHEN mtd.tranStatus IN ('SUCCESS', 'SETTLED') THEN 1 END) as successCount, " +
+            "COUNT(CASE WHEN mtd.tranStatus = 'FAILED' THEN 1 END) as failureCount, " +
+            "COUNT(CASE WHEN mtd.tranStatus = 'PENDING' THEN 1 END) as pendingCount " +
+
             "FROM MerchantTransactionDetails mtd WHERE " +
             "mtd.updatedDateAndTimeOfTransaction BETWEEN :startDate AND :endDate " +
             "AND (:merchantId IS NULL OR mtd.merchant.id = :merchantId) " +
-           //"AND (:status IS NULL OR mtd.tranStatus = :status) " +
             "AND (:transactionType IS NULL OR mtd.transactionType = :transactionType)")
     Map<String, Object> getMerchantTransactionSummaryBySettlementDate(
             @Param("startDate") LocalDateTime startDate,
@@ -148,6 +194,47 @@ public interface MerchantTransDetRepository extends JpaRepository<MerchantTransa
             @Param("merchantId") Long merchantId,
             @Param("status") String status,
             @Param("transactionType") String transactionType);
+
+//    @Query("SELECT " +
+//            "COUNT(mtd) as totalTransactions, " +
+//            "COALESCE(SUM(mtd.amount), 0) as totalAmount, " +
+//            "COALESCE(SUM(mtd.netAmount), 0) as totalNetAmount, " +
+//            "COALESCE(SUM(mtd.charge), 0) as totalCharges, " +
+//            "COALESCE(AVG(mtd.amount), 0) as averageAmount, " +
+//            "COUNT(CASE WHEN mtd.tranStatus = 'SETTLED' THEN 1 END) as successCount, " +
+//            "COUNT(CASE WHEN mtd.tranStatus != 'SETTLED' THEN 1 END) as failureCount " +
+//            "FROM MerchantTransactionDetails mtd WHERE " +
+//            "mtd.transactionDate BETWEEN :startDate AND :endDate " +
+//            "AND (:merchantId IS NULL OR mtd.merchant.id = :merchantId) " +
+//            //"AND (:status IS NULL OR mtd.tranStatus = :status) " +
+//            "AND (:transactionType IS NULL OR mtd.transactionType = :transactionType)")
+//    Map<String, Object> getMerchantTransactionSummary(
+//            @Param("startDate") LocalDateTime startDate,
+//            @Param("endDate") LocalDateTime endDate,
+//            @Param("merchantId") Long merchantId,
+//            @Param("status") String status,
+//            @Param("transactionType") String transactionType);
+//
+//    // Summary based on settlement date
+//    @Query("SELECT " +
+//            "COUNT(mtd) as totalTransactions, " +
+//            "COALESCE(SUM(mtd.amount), 0) as totalAmount, " +
+//            "COALESCE(SUM(mtd.netAmount), 0) as totalNetAmount, " +
+//            "COALESCE(SUM(mtd.grossCharge), 0) as totalCharges, " +
+//            "COALESCE(AVG(mtd.amount), 0) as averageAmount, " +
+//            "COUNT(CASE WHEN mtd.tranStatus = 'SETTLED' THEN 1 END) as successCount, " +
+//            "COUNT(CASE WHEN mtd.tranStatus != 'SETTLED' THEN 1 END) as failureCount " +
+//            "FROM MerchantTransactionDetails mtd WHERE " +
+//            "mtd.updatedDateAndTimeOfTransaction BETWEEN :startDate AND :endDate " +
+//            "AND (:merchantId IS NULL OR mtd.merchant.id = :merchantId) " +
+//           //"AND (:status IS NULL OR mtd.tranStatus = :status) " +
+//            "AND (:transactionType IS NULL OR mtd.transactionType = :transactionType)")
+//    Map<String, Object> getMerchantTransactionSummaryBySettlementDate(
+//            @Param("startDate") LocalDateTime startDate,
+//            @Param("endDate") LocalDateTime endDate,
+//            @Param("merchantId") Long merchantId,
+//            @Param("status") String status,
+//            @Param("transactionType") String transactionType);
 
 
 // for export excel
@@ -159,7 +246,7 @@ public interface MerchantTransDetRepository extends JpaRepository<MerchantTransa
             "mtd.updatedDateAndTimeOfTransaction, vt.authCode, vt.tid, " +
             "mtd.netAmount, mtd.grossCharge, ftd.netAmount, mtd.charge, " +
             "vt.brandType, vt.cardType, vt.cardClassification, " +
-            "mtd.merchant.businessName, ftd.franchise.franchiseName, mtd.tranStatus) " +
+            "mtd.merchant.businessName, ftd.franchise.franchiseName, mtd.tranStatus, mtd.service) " +
             "FROM MerchantTransactionDetails mtd " +
             "LEFT JOIN VendorTransactions vt ON vt.transactionReferenceId = mtd.vendorTransactionId " +
             "LEFT JOIN FranchiseTransactionDetails ftd ON ftd.vendorTransactionId = mtd.vendorTransactionId " +
@@ -182,7 +269,7 @@ public interface MerchantTransDetRepository extends JpaRepository<MerchantTransa
             "mtd.updatedDateAndTimeOfTransaction, vt.authCode, vt.tid, " +
             "mtd.netAmount, mtd.grossCharge, ftd.netAmount, mtd.charge, " +
             "vt.brandType, vt.cardType, vt.cardClassification, " +
-            "mtd.merchant.businessName, ftd.franchise.franchiseName, mtd.tranStatus) " +
+            "mtd.merchant.businessName, ftd.franchise.franchiseName, mtd.tranStatus, mtd.service) " +
             "FROM MerchantTransactionDetails mtd " +
             "LEFT JOIN VendorTransactions vt ON vt.transactionReferenceId = mtd.vendorTransactionId " +
             "LEFT JOIN FranchiseTransactionDetails ftd ON ftd.vendorTransactionId = mtd.vendorTransactionId " +

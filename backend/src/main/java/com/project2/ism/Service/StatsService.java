@@ -3,15 +3,13 @@ package com.project2.ism.Service;
 
 import com.project2.ism.DTO.*;
 import com.project2.ism.DTO.ReportDTO.*;
-import com.project2.ism.Model.Users.Franchise;
-import com.project2.ism.Model.Users.Merchant;
+import com.project2.ism.DTO.Vendor.VendorStatsDTO;
 import com.project2.ism.Repository.*;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 public class StatsService {

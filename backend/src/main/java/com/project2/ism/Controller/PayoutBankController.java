@@ -5,7 +5,7 @@ import com.project2.ism.DTO.PayoutDTO.TransferRequest;
 import com.project2.ism.DTO.PayoutDTO.VerifyAndAddBankRequest;
 import com.project2.ism.Exception.BankVerificationException;
 import com.project2.ism.Exception.InsufficientBalanceException;
-import com.project2.ism.Model.PayoutBanks;
+import com.project2.ism.Model.Payout.PayoutBanks;
 import com.project2.ism.Service.PayoutBankService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -20,8 +20,12 @@ import java.util.Map;
 @RequestMapping("/payout")
 public class PayoutBankController {
 
-    @Autowired
-    private PayoutBankService payoutBankService;
+
+    private final PayoutBankService payoutBankService;
+
+    public PayoutBankController(PayoutBankService payoutBankService) {
+        this.payoutBankService = payoutBankService;
+    }
 
     @GetMapping("/banks/{customerId}") // working
     public ResponseEntity<?> getBanks(@PathVariable Long customerId,

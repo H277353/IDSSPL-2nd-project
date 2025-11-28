@@ -99,10 +99,7 @@ const ViewProfile = () => {
                   <p className="text-gray-600">Email</p>
                   <p className="font-medium">{merchant.contactPersonEmail}</p>
                 </div>
-                <div>
-                  <p className="text-gray-600">Monthly Revenue</p>
-                  <p className="font-medium">₹{merchant.monthlyRevenue?.toFixed(2) || '0.00'}</p>
-                </div>
+               
               </div>
             </div>
           ))}
@@ -218,7 +215,7 @@ const ViewProfile = () => {
           {!isFranchise && data.monthlyRevenue !== null && (
             <InfoItem label="Monthly Revenue" value={`₹${data.monthlyRevenue}`} />
           )}
-          <InfoItem label="Address" value={data.address} fullWidth />
+          <InfoItem label="Address" value={data.businessAddress} fullWidth />
         </div>
       </div>
 

@@ -1,4 +1,4 @@
-package com.project2.ism.DTO;
+package com.project2.ism.DTO.Vendor;
 
 import com.project2.ism.Model.Vendor.VendorCardRates;
 import com.project2.ism.Model.Vendor.VendorRates;

@@ -1,6 +1,9 @@
-package com.project2.ism.Model;
+package com.project2.ism.Model.Payout;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Pattern;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 
@@ -25,19 +28,27 @@ public class PayoutBanks {
     @Column(name = "bank_name", nullable = false)
     private String bankName;
 
+    private String stateName;
+
     @Column(name = "account_number", nullable = false)
     private String accountNumber;
 
     @Column(name = "ifsc_code", nullable = false)
+    @Pattern(
+            regexp = "^[A-Z]{4}0[A-Z0-9]{6}$", // RBI IFSC pattern
+            message = "Invalid IFSC code format (e.g., SBIN0001234)"
+    )
     private String ifscCode;
 
     @Column(name = "verified", nullable = false)
     private boolean verified = false;
 
     @Column(name = "created_at")
+    @CreationTimestamp
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at")
+    @UpdateTimestamp
     private LocalDateTime updatedAt;
 
     // Constructors
@@ -55,6 +66,16 @@ public class PayoutBanks {
         this.bankName = bankName;
         this.accountNumber = accountNumber;
         this.ifscCode = ifscCode;
+    }
+
+    public PayoutBanks(String customerType, Long customerId, String holderName, String bankName, String ifscCode, String stateName, String accountNumber) {
+        this.customerType = customerType;
+        this.customerId = customerId;
+        this.holderName = holderName;
+        this.bankName = bankName;
+        this.ifscCode = ifscCode;
+        this.stateName = stateName;
+        this.accountNumber = accountNumber;
     }
 
     // Getters and Setters
@@ -138,9 +159,12 @@ public class PayoutBanks {
         this.updatedAt = updatedAt;
     }
 
-    @PreUpdate
-    public void preUpdate() {
-        this.updatedAt = LocalDateTime.now();
+    public String getStateName() {
+        return stateName;
+    }
+
+    public void setStateName(String stateName) {
+        this.stateName = stateName;
     }
 }
 

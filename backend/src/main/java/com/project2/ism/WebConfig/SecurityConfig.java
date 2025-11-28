@@ -37,9 +37,11 @@ public class SecurityConfig {
                         .requestMatchers("/users/**").permitAll()
                         .requestMatchers("/actuator/health").permitAll() // Health check
 
+                        .requestMatchers("/payment-payout/callback","/tools/encrypt/**").permitAll()
                         // Admin only endpoints
                         .requestMatchers("/vendors/**", "/vendor-rates/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
                         .requestMatchers("/products/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
+
 
 
                         // Default - all other requests require authentication

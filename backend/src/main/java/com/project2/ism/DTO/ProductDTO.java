@@ -1,6 +1,7 @@
 package com.project2.ism.DTO;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.project2.ism.DTO.Vendor.VendorIDNameDTO;
 
 public class ProductDTO {
 

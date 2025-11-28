@@ -1,4 +1,4 @@
-package com.project2.ism.DTO;
+package com.project2.ism.DTO.Vendor;
 
 import java.math.BigDecimal;
 import java.util.Map;

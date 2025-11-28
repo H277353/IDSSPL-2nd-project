@@ -67,8 +67,8 @@ public class VendorRatesService {
 //
 //        existingRates.setEffectiveDate(updatedRates.getEffectiveDate());
 //        existingRates.setExpiryDate(updatedRates.getExpiryDate());
-//        existingRates.setVendor(updatedRates.getVendor());
-//        existingRates.setProduct(updatedRates.getProduct());
+//        existingRates.setPaymentVendor(updatedRates.getPaymentVendor());
+//        existingRates.setPayoutProduct(updatedRates.getPayoutProduct());
 //        existingRates.setRemark(updatedRates.getRemark());
 //
 //        // Replace vendorCardRates

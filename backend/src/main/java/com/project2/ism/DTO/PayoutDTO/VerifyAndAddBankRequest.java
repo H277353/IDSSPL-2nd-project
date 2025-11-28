@@ -6,6 +6,7 @@ public class VerifyAndAddBankRequest {
     private String bankName;
     private String accountNumber;
     private String bankHolderName;
+    private String stateName;
 
     // Getters and setters
     public String getCustomerType() { return customerType; }
@@ -22,4 +23,12 @@ public class VerifyAndAddBankRequest {
 
     public String getBankHolderName() { return bankHolderName; }
     public void setBankHolderName(String bankHolderName) { this.bankHolderName = bankHolderName; }
+
+    public String getStateName() {
+        return stateName;
+    }
+
+    public void setStateName(String stateName) {
+        this.stateName = stateName;
+    }
 }

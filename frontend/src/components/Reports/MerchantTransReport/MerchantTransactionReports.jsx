@@ -1,7 +1,6 @@
-// MerchantTransactionReports.jsx
 import React, { useState, useMemo } from 'react';
 import { useReactTable, getCoreRowModel, flexRender, createColumnHelper } from '@tanstack/react-table';
-import { FileText, TrendingUp, TrendingDown, DollarSign, AlertCircle } from 'lucide-react';
+import { FileText, TrendingUp, TrendingDown, DollarSign, AlertCircle, Download, ChevronLeft, ChevronRight } from 'lucide-react';
 import api from '../../../constants/API/axiosInstance';
 import UniversalExportButtons from '../UniversalExportButtons';
 import MTransReportFilters from './MTransReportFilters';
@@ -10,16 +9,25 @@ const MerchantTransactionReports = ({ filters: commonFilters, userType }) => {
     const [transactions, setTransactions] = useState([]);
     const [summary, setSummary] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [exportingFull, setExportingFull] = useState(false);
     const [reportInfo, setReportInfo] = useState(null);
+    const [pagination, setPagination] = useState({
+        currentPage: 0,
+        pageSize: 100,
+        totalPages: 0,
+        totalElements: 0,
+        hasNext: false,
+        hasPrevious: false
+    });
     const [localFilters, setLocalFilters] = useState({
         ...commonFilters,
         transactionType: 'CREDIT'
     });
-    const [merchantType, setMerchantType] = useState('direct'); // 'direct' or 'franchise'
+    const [merchantType, setMerchantType] = useState('direct');
     const customerId = localStorage.getItem('customerId');
     const isMerchant = userType === 'merchant';
 
-    const fetchTransactions = async () => {
+    const fetchTransactions = async (page = 0) => {
         setLoading(true);
         try {
             const params = {
@@ -28,62 +36,29 @@ const MerchantTransactionReports = ({ filters: commonFilters, userType }) => {
                 status: 'SETTLED',
                 dateFilterType: localFilters.dateFilterType,
                 ...(localFilters.transactionType !== 'All' && { transactionType: localFilters.transactionType }),
+                merchantId: isMerchant ? customerId : localFilters.selectedMerchant,
+                page: page,
+                size: pagination.pageSize,
             };
 
-            // 🟡 CASE 1: Export ALL merchants (Excel file)
-            if (localFilters.selectedMerchant === 'ALL') {
-                const exportParams = {
-                    ...params,
-                    merchantType: merchantType.toUpperCase(), // DIRECT or FRANCHISE
-                    includeTaxes: false, // optional; change if you need taxes included
-                };
+            const response = await api.get('/v1/reports/transactions/merchant/enhanced', { params });
 
-                const response = await api.get('/v1/reports/transactions/merchant/export-all', {
-                    params: exportParams,
-                    responseType: 'blob', // important for binary file
+            if (response.data.success) {
+                setTransactions(response.data.data.transactions);
+                setSummary(response.data.data.summary);
+                setReportInfo({
+                    reportGeneratedAt: response.data.data.reportGeneratedAt,
+                    totalPages: response.data.data.totalPages,
+                    totalElements: response.data.data.totalElements,
                 });
-
-                // Convert to Blob and trigger browser download
-                const blob = new Blob([response.data], {
-                    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                setPagination({
+                    currentPage: page,
+                    pageSize: pagination.pageSize,
+                    totalPages: response.data.data.totalPages,
+                    totalElements: response.data.data.totalElements,
+                    hasNext: response.data.data.hasNext,
+                    hasPrevious: response.data.data.hasPrevious
                 });
-
-                const downloadUrl = window.URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.href = downloadUrl;
-
-                // Try to extract filename from backend header
-                const disposition = response.headers['content-disposition'];
-                const filename = disposition
-                    ? disposition.split('filename=')[1]
-                    : `merchant_transactions_${merchantType.toLowerCase()}_${localFilters.startDate}_to_${localFilters.endDate}.xlsx`;
-
-                link.setAttribute('download', filename.replace(/"/g, ''));
-                document.body.appendChild(link);
-                link.click();
-                link.remove();
-                window.URL.revokeObjectURL(downloadUrl);
-            }
-            // 🟢 CASE 2: Specific merchant (normal paginated API)
-            else {
-                const response = await api.get('/v1/reports/transactions/merchant/enhanced', {
-                    params: {
-                        ...params,
-                        merchantId: isMerchant ? customerId : localFilters.selectedMerchant,
-                        page: 0,
-                        size: 100,
-                    },
-                });
-
-                if (response.data.success) {
-                    setTransactions(response.data.data.transactions);
-                    setSummary(response.data.data.summary);
-                    setReportInfo({
-                        reportGeneratedAt: response.data.data.reportGeneratedAt,
-                        totalPages: response.data.data.totalPages,
-                        totalElements: response.data.data.totalElements,
-                    });
-                }
             }
         } catch (error) {
             console.error('Error fetching transactions:', error);
@@ -93,8 +68,61 @@ const MerchantTransactionReports = ({ filters: commonFilters, userType }) => {
         }
     };
 
+    const exportFullReport = async () => {
+        setExportingFull(true);
+        try {
+            const params = {
+                startDate: `${localFilters.startDate}T00:00:00`,
+                endDate: `${localFilters.endDate}T23:59:59`,
+                status: 'SETTLED',
+                dateFilterType: localFilters.dateFilterType,
+                ...(localFilters.transactionType !== 'All' && { transactionType: localFilters.transactionType }),
+                includeTaxes: false,
+            };
 
-    // Detect which fields are available in the data
+            // If ALL merchants selected
+            if (localFilters.selectedMerchant === 'ALL') {
+                params.merchantType = merchantType.toUpperCase();
+            } else {
+                // Single merchant - add merchantId
+                params.merchantId = isMerchant ? customerId : localFilters.selectedMerchant;
+            }
+
+            const response = await api.get('/v1/reports/transactions/merchant/export-all', {
+                params,
+                responseType: 'blob',
+            });
+
+            const blob = new Blob([response.data], {
+                type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            });
+
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+
+            const disposition = response.headers['content-disposition'];
+            const filename = disposition
+                ? disposition.split('filename=')[1].replace(/"/g, '')
+                : `merchant_transactions_${merchantType.toLowerCase()}_${localFilters.startDate}_to_${localFilters.endDate}.xlsx`;
+
+            link.setAttribute('download', filename);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(downloadUrl);
+        } catch (error) {
+            console.error('Error exporting full report:', error);
+            alert('Error exporting full report');
+        } finally {
+            setExportingFull(false);
+        }
+    };
+
+    const handlePageChange = (newPage) => {
+        fetchTransactions(newPage);
+    };
+
     const availableFields = useMemo(() => {
         if (transactions.length === 0) return new Set();
 
@@ -109,7 +137,6 @@ const MerchantTransactionReports = ({ filters: commonFilters, userType }) => {
         return fields;
     }, [transactions]);
 
-    // Define all possible column configurations
     const columnDefinitions = useMemo(() => {
         const columnHelper = createColumnHelper();
         return {
@@ -124,8 +151,7 @@ const MerchantTransactionReports = ({ filters: commonFilters, userType }) => {
             actionOnBalance: columnHelper.accessor('actionOnBalance', {
                 header: 'Action',
                 cell: info => (
-                    <span className={`text-xs font-semibold ${info.getValue() === 'CREDIT' ? 'text-green-600' : 'text-red-600'
-                        }`}>
+                    <span className={`text-xs font-semibold ${info.getValue() === 'CREDIT' ? 'text-green-600' : 'text-red-600'}`}>
                         {info.getValue()}
                     </span>
                 )
@@ -205,15 +231,13 @@ const MerchantTransactionReports = ({ filters: commonFilters, userType }) => {
         };
     }, []);
 
-    // Priority order for columns
     const columnPriority = [
-        'customTxnId','txnId', 'actionOnBalance', 'txnDate', 'settleDate', 'txnAmount', 'settleAmount',
+        'customTxnId', 'txnId', 'actionOnBalance', 'txnDate', 'settleDate', 'txnAmount', 'settleAmount',
         'systemFee', 'commissionAmount', 'merchantName', 'franchiseName', 'brandType',
         'cardType', 'authCode', 'tid', 'cardClassification', 'state',
         'settlementPercentage', 'merchantRate', 'franchiseRate', 'commissionRate'
     ];
 
-    // Dynamically build columns based on available fields
     const columns = useMemo(() => {
         return columnPriority
             .filter(field => availableFields.has(field))
@@ -227,11 +251,25 @@ const MerchantTransactionReports = ({ filters: commonFilters, userType }) => {
         getCoreRowModel: getCoreRowModel(),
     });
 
-    const handleFiltersChange = (newFilters) => {
-        setLocalFilters(prev => ({ ...prev, ...newFilters }));
+    const resetReportState = () => {
+        setTransactions([]);
+        setSummary(null);
+        setReportInfo(null);
+        setPagination({
+            currentPage: 0,
+            pageSize: 100,
+            totalPages: 0,
+            totalElements: 0,
+            hasNext: false,
+            hasPrevious: false
+        });
     };
 
-    // Dynamic export configuration
+    const handleFiltersChange = (newFilters) => {
+        setLocalFilters(prev => ({ ...prev, ...newFilters }));
+        resetReportState();
+    };
+
     const exportConfig = useMemo(() => {
         const fieldMapping = {
             customTxnId: { header: 'System ID', format: val => val },
@@ -308,7 +346,6 @@ const MerchantTransactionReports = ({ filters: commonFilters, userType }) => {
 
     const isFranchiseMerchant = availableFields.has('franchiseName');
 
-    // Dynamic card analysis
     const renderCardAnalysis = () => {
         const hasBrandType = availableFields.has('brandType');
         const hasCardType = availableFields.has('cardType');
@@ -408,20 +445,18 @@ const MerchantTransactionReports = ({ filters: commonFilters, userType }) => {
 
     return (
         <div className="space-y-4">
-            {/* Filters */}
             <div className="bg-white rounded-lg shadow-sm border p-4">
                 <MTransReportFilters
                     filters={localFilters}
                     onChange={handleFiltersChange}
                     userType={userType}
                     reportType="transactions"
-                    onGenerate={fetchTransactions}
+                    onGenerate={() => fetchTransactions(0)}
                     merchantType={merchantType}
                     setMerchantType={setMerchantType}
                 />
             </div>
 
-            {/* Summary Cards */}
             {summary && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div className="bg-white rounded-lg shadow-sm border p-4">
@@ -473,10 +508,8 @@ const MerchantTransactionReports = ({ filters: commonFilters, userType }) => {
                 </div>
             )}
 
-            {/* Dynamic Card Analysis */}
             {transactions.length > 0 && renderCardAnalysis()}
 
-            {/* Transactions Table */}
             {transactions.length > 0 && (
                 <div className="bg-white rounded-lg shadow-sm border">
                     <div className="px-4 py-3 border-b border-gray-200 flex justify-between items-center">
@@ -486,18 +519,31 @@ const MerchantTransactionReports = ({ filters: commonFilters, userType }) => {
                                 <p className="text-xs text-gray-600 mt-1">
                                     {isFranchiseMerchant ? 'Franchise Merchant' : 'Direct Merchant'} Report |
                                     Generated on {new Date(reportInfo.reportGeneratedAt).toLocaleDateString()} |
-                                    Total {reportInfo.totalElements} transactions
+                                    Showing {transactions.length} of {pagination.totalElements} transactions
                                 </p>
                             )}
                         </div>
-                        <UniversalExportButtons
-                            data={transactions}
-                            filename={generateFilename()}
-                            title={`${isFranchiseMerchant ? 'Franchise' : 'Direct'} Merchant Transaction Report`}
-                            columns={exportConfig}
-                            excelTransform={excelTransform}
-                            summary={summary}
-                        />
+                        <div className="flex gap-2">
+                            {pagination.totalElements > 100 ? (
+                                <button
+                                    onClick={exportFullReport}
+                                    disabled={exportingFull || loading}
+                                    className="px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                >
+                                    <Download className="w-4 h-4" />
+                                    {exportingFull ? 'Exporting...' : 'Export Full Report'}
+                                </button>
+                            ) :
+                                <UniversalExportButtons
+                                    data={transactions}
+                                    filename={generateFilename()}
+                                    title={`${isFranchiseMerchant ? 'Franchise' : 'Direct'} Merchant Transaction Report`}
+                                    columns={exportConfig}
+                                    excelTransform={excelTransform}
+                                    summary={summary}
+                                />
+                            }
+                        </div>
                     </div>
 
                     <div className="overflow-x-auto" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
@@ -526,10 +572,43 @@ const MerchantTransactionReports = ({ filters: commonFilters, userType }) => {
                             </tbody>
                         </table>
                     </div>
+
+                    <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
+                        <div className="text-sm text-gray-700">
+                            Page {pagination.currentPage + 1} of {pagination.totalPages}
+                            <span className="ml-2 text-gray-500">
+                                ({pagination.totalElements} total transactions)
+                            </span>
+                        </div>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => handlePageChange(pagination.currentPage - 1)}
+                                disabled={!pagination.hasPrevious}
+                                className="px-3 py-1 text-sm border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                            >
+                                <ChevronLeft className="w-4 h-4" />
+                                Previous
+                            </button>
+                            <button
+                                onClick={() => handlePageChange(pagination.currentPage + 1)}
+                                disabled={!pagination.hasNext}
+                                className="px-3 py-1 text-sm border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                            >
+                                Next
+                                <ChevronRight className="w-4 h-4" />
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
 
-            {/* No Data Message */}
+            {loading && (
+                <div className="bg-white rounded-lg shadow-sm border p-8 text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
+                    <p className="text-sm text-gray-600">Loading transactions...</p>
+                </div>
+            )}
+
             {!loading && transactions.length === 0 && summary && (
                 <div className="bg-white rounded-lg shadow-sm border p-8 text-center">
                     <AlertCircle className="w-8 h-8 text-gray-400 mx-auto mb-3" />

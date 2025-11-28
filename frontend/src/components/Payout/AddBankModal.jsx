@@ -1,9 +1,35 @@
 // AddBankModal.jsx
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
+import Select from "react-select";
 import api from '../../constants/API/axiosInstance';
 
 const AddBankModal = ({ isOpen, onClose, onBankAdded }) => {
+
+    const [vendorBanks, setVendorBanks] = useState([]);
+    const [vendorStates, setVendorStates] = useState([]);
+
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const fetchVendorData = async () => {
+            try {
+                const [banksRes, statesRes] = await Promise.all([
+                    api.get(`/vimo-banks`),
+                    api.get(`/vimo-states`)
+                ]);
+
+                setVendorBanks(banksRes.data || []);
+                setVendorStates(statesRes.data || []);
+            } catch (err) {
+                toast.error("Failed to load bank/state list");
+            }
+        };
+
+        fetchVendorData();
+    }, [isOpen]);
+
+
     const [formData, setFormData] = useState({
         ifscCode: '',
         bankName: '',
@@ -58,6 +84,7 @@ const AddBankModal = ({ isOpen, onClose, onBankAdded }) => {
             const response = await api.post(`/payout/verify-and-add-bank/${customerId}`, {
                 ifscCode: formData.ifscCode,
                 bankName: formData.bankName,
+                stateName: formData.stateName,  // NEW
                 accountNumber: formData.accountNumber,
                 bankHolderName: formData.bankHolderName,
                 customerType
@@ -146,19 +173,55 @@ const AddBankModal = ({ isOpen, onClose, onBankAdded }) => {
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                            <label className="block text-sm font-medium text-black mb-1">
                                 Bank Name *
                             </label>
-                            <input
-                                type="text"
-                                name="bankName"
-                                value={formData.bankName}
-                                onChange={handleInputChange}
-                                placeholder="Bank Name"
-                                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                disabled={loading}
+                            <Select
+                                options={vendorBanks.map(bank => ({
+                                    value: bank.bankName,
+                                    label: bank.bankName
+                                }))}
+                                value={
+                                    formData.bankName
+                                        ? { value: formData.bankName, label: formData.bankName }
+                                        : null
+                                }
+                                onChange={(selected) =>
+                                    setFormData(prev => ({
+                                        ...prev,
+                                        bankName: selected?.value || ""
+                                    }))
+                                }
+                                placeholder="Search or select bank..."
+                                className="text-sm"
                             />
+
                         </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium  mb-1">
+                            Beneficiary State *
+                        </label>
+                        <Select
+                            options={vendorStates.map(state => ({
+                                value: state.stateName,
+                                label: state.stateName
+                            }))}
+                            value={
+                                formData.stateName
+                                    ? { value: formData.stateName, label: formData.stateName }
+                                    : null
+                            }
+                            onChange={(selected) =>
+                                setFormData(prev => ({
+                                    ...prev,
+                                    stateName: selected?.value || ""
+                                }))
+                            }
+                            placeholder="Search or select state..."
+                            className="text-sm"
+                        />
                     </div>
 
                     <div>

@@ -1,7 +1,6 @@
-// FranchiseTransactionReport.jsx
 import React, { useState, useMemo } from 'react';
 import { useReactTable, getCoreRowModel, flexRender, createColumnHelper } from '@tanstack/react-table';
-import { FileText, TrendingUp, DollarSign, AlertCircle } from 'lucide-react';
+import { FileText, TrendingUp, DollarSign, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import api from '../../../constants/API/axiosInstance';
 import UniversalExportButtons from '../UniversalExportButtons';
 import FTransReportFilters from './FTransReportFilters';
@@ -11,12 +10,20 @@ const FranchiseTransactionReport = ({ filters: commonFilters, isFranchise }) => 
     const [summary, setSummary] = useState(null);
     const [loading, setLoading] = useState(false);
     const [reportInfo, setReportInfo] = useState(null);
+    const [pagination, setPagination] = useState({
+        currentPage: 0,
+        pageSize: 100,
+        totalPages: 0,
+        totalElements: 0,
+        hasNext: false,
+        hasPrevious: false
+    });
     const [localFilters, setLocalFilters] = useState({
         ...commonFilters,
         transactionType: 'CREDIT'
     });
 
-    const fetchTransactions = async () => {
+    const fetchTransactions = async (page = 0) => {
         setLoading(true);
         try {
             const params = {
@@ -27,11 +34,10 @@ const FranchiseTransactionReport = ({ filters: commonFilters, isFranchise }) => 
                 ...(localFilters.transactionType !== 'All' && { transactionType: localFilters.transactionType })
             };
 
-            // 🟡 CASE 1: Franchise = ALL → Export Excel
             if (localFilters.selectedFranchise === 'ALL') {
                 const response = await api.get('/v1/reports/transactions/franchise/export-all', {
                     params,
-                    responseType: 'blob', // important for file download
+                    responseType: 'blob',
                 });
 
                 const blob = new Blob([response.data], {
@@ -42,7 +48,6 @@ const FranchiseTransactionReport = ({ filters: commonFilters, isFranchise }) => 
                 const link = document.createElement('a');
                 link.href = downloadUrl;
 
-                // optional custom filename from response header
                 const disposition = response.headers['content-disposition'];
                 const filename = disposition
                     ? disposition.split('filename=')[1]
@@ -53,15 +58,13 @@ const FranchiseTransactionReport = ({ filters: commonFilters, isFranchise }) => 
                 link.click();
                 link.remove();
                 window.URL.revokeObjectURL(downloadUrl);
-            }
-            // 🟢 CASE 2: Specific franchise → Normal paginated API
-            else {
+            } else {
                 const response = await api.get('/v1/reports/transactions/franchise/enhanced', {
                     params: {
                         ...params,
                         franchiseId: localFilters.selectedFranchise,
-                        page: 0,
-                        size: 100,
+                        page: page,
+                        size: pagination.pageSize,
                     },
                 });
 
@@ -70,9 +73,15 @@ const FranchiseTransactionReport = ({ filters: commonFilters, isFranchise }) => 
                     setSummary(response.data.data.summary);
                     setReportInfo({
                         reportGeneratedAt: response.data.data.reportGeneratedAt,
+                        reportType: response.data.data.reportType,
+                    });
+                    setPagination({
+                        currentPage: page,
+                        pageSize: pagination.pageSize,
                         totalPages: response.data.data.totalPages,
                         totalElements: response.data.data.totalElements,
-                        reportType: response.data.data.reportType,
+                        hasNext: response.data.data.hasNext,
+                        hasPrevious: response.data.data.hasPrevious
                     });
                 }
             }
@@ -84,15 +93,12 @@ const FranchiseTransactionReport = ({ filters: commonFilters, isFranchise }) => 
         }
     };
 
-
-    // Detect which fields are available in the data
     const availableFields = useMemo(() => {
         if (transactions.length === 0) return new Set();
 
         const fields = new Set();
         transactions.forEach(txn => {
             Object.keys(txn).forEach(key => {
-                // Only include fields that have meaningful values (not null/undefined/empty)
                 if (txn[key] !== null && txn[key] !== undefined && txn[key] !== '') {
                     fields.add(key);
                 }
@@ -101,7 +107,6 @@ const FranchiseTransactionReport = ({ filters: commonFilters, isFranchise }) => 
         return fields;
     }, [transactions]);
 
-    // Define all possible column configurations
     const columnDefinitions = useMemo(() => {
         const columnHelper = createColumnHelper();
         return {
@@ -169,6 +174,21 @@ const FranchiseTransactionReport = ({ filters: commonFilters, isFranchise }) => 
                 header: 'State',
                 cell: info => <span className="text-xs text-gray-600">{info.getValue() || '-'}</span>
             }),
+            service: columnHelper.accessor('service', {
+                header: 'Service',
+                cell: info => <span className="text-xs text-gray-700">{info.getValue()}</span>
+            }),
+            actionOnBalance: columnHelper.accessor('actionOnBalance', {
+                header: 'Action',
+                cell: info => {
+                    const action = info.getValue();
+                    return (
+                        <span className={`text-xs font-medium ${action === 'CREDIT' ? 'text-green-600' : 'text-red-600'}`}>
+                            {action}
+                        </span>
+                    );
+                }
+            }),
             settlementRate: columnHelper.accessor('settlementRate', {
                 header: 'Settlement Rate',
                 cell: info => <span className="text-xs text-indigo-600">{info.getValue()}%</span>
@@ -185,19 +205,16 @@ const FranchiseTransactionReport = ({ filters: commonFilters, isFranchise }) => 
                 header: 'Commission Rate',
                 cell: info => <span className="text-xs text-orange-600">{info.getValue()}%</span>
             })
-            
         };
     }, []);
 
-    // Priority order for columns (most important first)
     const columnPriority = [
-        'customTxnId', 'txnId', 'txnDate', 'settleDate', 'txnAmount', 'settleAmount', 'systemFee', 'commissionAmount',
-        'merchantName', 'franchiseName', 'brandType', 'cardType', 'authCode', 'tid',
-        'cardClassification', 'state', 'settlementRate', 'franchiseRate',
-        'merchantRate', 'commissionRate'
+        'customTxnId', 'txnId', 'txnDate', 'settleDate', 'actionOnBalance', 'service', 'txnAmount',
+        'settleAmount', 'systemFee', 'commissionAmount', 'merchantName', 'franchiseName',
+        'brandType', 'cardType', 'authCode', 'tid', 'cardClassification', 'state',
+        'settlementRate', 'franchiseRate', 'merchantRate', 'commissionRate'
     ];
 
-    // Dynamically build columns based on available fields
     const columns = useMemo(() => {
         return columnPriority
             .filter(field => availableFields.has(field))
@@ -211,17 +228,38 @@ const FranchiseTransactionReport = ({ filters: commonFilters, isFranchise }) => 
         getCoreRowModel: getCoreRowModel(),
     });
 
-    const handleFiltersChange = (newFilters) => {
-        setLocalFilters(prev => ({ ...prev, ...newFilters }));
+    const resetReportState = () => {
+        setTransactions([]);
+        setSummary(null);
+        setReportInfo(null);
+        setPagination({
+            currentPage: 0,
+            pageSize: 100,
+            totalPages: 0,
+            totalElements: 0,
+            hasNext: false,
+            hasPrevious: false
+        });
     };
 
-    // Dynamic export configuration based on available fields
+    const handleFiltersChange = (newFilters) => {
+        setLocalFilters(prev => ({ ...prev, ...newFilters }));
+        resetReportState();
+    };
+
+
+    const handlePageChange = (newPage) => {
+        fetchTransactions(newPage);
+    };
+
     const exportConfig = useMemo(() => {
         const fieldMapping = {
             customTxnId: { header: 'System ID', format: val => val },
             txnId: { header: 'Transaction ID', format: val => val },
             txnDate: { header: 'Transaction Date', format: val => new Date(val).toLocaleString() },
             settleDate: { header: 'Settled On', format: val => new Date(val).toLocaleString() },
+            actionOnBalance: { header: 'Action', format: val => val },
+            service: { header: 'Service', format: val => val },
             txnAmount: { header: 'Amount (₹)', format: val => val },
             settleAmount: { header: 'Settle Amount (₹)', format: val => val },
             systemFee: { header: 'System Fee (₹)', format: val => val },
@@ -238,7 +276,6 @@ const FranchiseTransactionReport = ({ filters: commonFilters, isFranchise }) => 
             franchiseRate: { header: 'Franchise Rate (%)', format: val => val },
             merchantRate: { header: 'Merchant Rate (%)', format: val => val },
             commissionRate: { header: 'Commission Rate (%)', format: val => val }
-            
         };
 
         const availableColumns = columnPriority.filter(field => availableFields.has(field));
@@ -258,6 +295,8 @@ const FranchiseTransactionReport = ({ filters: commonFilters, isFranchise }) => 
                     txnId: { header: 'Transaction ID', format: val => val },
                     txnDate: { header: 'Transaction Date', format: val => new Date(val).toLocaleString() },
                     settleDate: { header: 'Settled On', format: val => new Date(val).toLocaleString() },
+                    actionOnBalance: { header: 'Action', format: val => val },
+                    service: { header: 'Service', format: val => val },
                     txnAmount: { header: 'Amount', format: val => val },
                     settleAmount: { header: 'Settle Amount', format: val => val },
                     systemFee: { header: 'System Fee', format: val => val },
@@ -274,7 +313,6 @@ const FranchiseTransactionReport = ({ filters: commonFilters, isFranchise }) => 
                     franchiseRate: { header: 'Franchise Rate', format: val => `${val || 0}%` },
                     merchantRate: { header: 'Merchant Rate', format: val => `${val || 0}%` },
                     commissionRate: { header: 'Commission Rate', format: val => `${val || 0}%` }
-                
                 };
 
                 const config = fieldMapping[key];
@@ -290,7 +328,6 @@ const FranchiseTransactionReport = ({ filters: commonFilters, isFranchise }) => 
         return `franchise_transaction_report${type}_${dateRange}`;
     };
 
-    // Dynamic card analysis based on available fields
     const renderCardAnalysis = () => {
         const hasBrandType = availableFields.has('brandType');
         const hasCardType = availableFields.has('cardType');
@@ -356,7 +393,7 @@ const FranchiseTransactionReport = ({ filters: commonFilters, isFranchise }) => 
                     onChange={handleFiltersChange}
                     isFranchise={isFranchise}
                     reportType="transactions"
-                    onGenerate={fetchTransactions}
+                    onGenerate={() => fetchTransactions(0)}
                 />
             </div>
 
@@ -367,39 +404,73 @@ const FranchiseTransactionReport = ({ filters: commonFilters, isFranchise }) => 
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-xs font-medium text-gray-600">Total Transactions</p>
-                                <p className="text-lg font-bold text-gray-900">{summary.totalTransactions}</p>
+                                <p className="text-2xl font-bold text-gray-900">{summary.totalTransactions?.toLocaleString()}</p>
+                                <p className="text-xs text-gray-500 mt-1">Success: {summary.successCount} | Failed: {summary.failureCount}</p>
                             </div>
-                            <FileText className="w-6 h-6 text-purple-600" />
+                            <FileText className="w-8 h-8 text-purple-600" />
                         </div>
                     </div>
 
                     <div className="bg-white rounded-lg shadow-sm border p-4">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-xs font-medium text-gray-600">Total Amount</p>
-                                <p className="text-lg font-bold text-gray-900">₹{summary.totalAmount?.toLocaleString()}</p>
+                                <p className="text-xs font-medium text-gray-600">Settlement Amount</p>
+                                <p className="text-2xl font-bold text-blue-900">₹{summary.totalSettlementAmount?.toLocaleString()}</p>
+                                <p className="text-xs text-blue-600 mt-1">{summary.settlementCount} settlements</p>
                             </div>
-                            <TrendingUp className="w-6 h-6 text-blue-600" />
+                            <TrendingUp className="w-8 h-8 text-blue-600" />
                         </div>
                     </div>
 
                     <div className="bg-white rounded-lg shadow-sm border p-4">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-xs font-medium text-gray-600">Net Amount</p>
-                                <p className="text-lg font-bold text-green-600">₹{summary.totalNetAmount?.toLocaleString()}</p>
+                                <p className="text-xs font-medium text-gray-600">Commission Earned</p>
+                                <p className="text-2xl font-bold text-green-900">₹{summary.totalCommissionEarned?.toLocaleString()}</p>
+                                <p className="text-xs text-gray-500 mt-1">Net Balance: ₹{summary.netBalance?.toLocaleString()}</p>
                             </div>
-                            <TrendingUp className="w-6 h-6 text-green-600" />
+                            <DollarSign className="w-8 h-8 text-green-600" />
                         </div>
                     </div>
 
                     <div className="bg-white rounded-lg shadow-sm border p-4">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-xs font-medium text-gray-600">Total Commission</p>
-                                <p className="text-lg font-bold text-orange-600">₹{summary.totalCommission?.toLocaleString() || 0}</p>
+                                <p className="text-xs font-medium text-gray-600">Payouts</p>
+                                <p className="text-2xl font-bold text-orange-900">₹{summary.totalPayoutAmount?.toLocaleString()}</p>
+                                <p className="text-xs text-gray-500 mt-1">
+                                    Success: {summary.successfulPayouts} | Pending: {summary.pendingPayouts}
+                                </p>
                             </div>
-                            <DollarSign className="w-6 h-6 text-orange-600" />
+                            <TrendingUp className="w-8 h-8 text-orange-600" />
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Additional Summary Info */}
+            {summary && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-white rounded-lg shadow-sm border p-3">
+                        <p className="text-xs font-medium text-gray-600 mb-2">Credit vs Debit</p>
+                        <div className="flex justify-between text-sm">
+                            <span className="text-green-600">Credit: ₹{summary.netCreditAmount?.toLocaleString()}</span>
+                            <span className="text-red-600">Debit: ₹{Math.abs(summary.netDebitAmount)?.toLocaleString()}</span>
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-lg shadow-sm border p-3">
+                        <p className="text-xs font-medium text-gray-600 mb-2">Refunds</p>
+                        <div className="text-sm">
+                            <span className="text-gray-900">{summary.refundCount} refunds</span>
+                            <span className="text-gray-600 ml-2">₹{summary.totalRefundAmount?.toLocaleString()}</span>
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-lg shadow-sm border p-3">
+                        <p className="text-xs font-medium text-gray-600 mb-2">Status Breakdown</p>
+                        <div className="flex gap-3 text-sm">
+                            <span className="text-gray-600">Pending: {summary.pendingCount}</span>
                         </div>
                     </div>
                 </div>
@@ -416,8 +487,8 @@ const FranchiseTransactionReport = ({ filters: commonFilters, isFranchise }) => 
                             <h2 className="text-md font-semibold text-gray-900">Transaction Details</h2>
                             {reportInfo && (
                                 <p className="text-xs text-gray-600 mt-1">
-                                    Report generated on {new Date(reportInfo.reportGeneratedAt).toLocaleDateString()} |
-                                    Total {reportInfo.totalElements} transactions
+                                    Report generated on {new Date(reportInfo.reportGeneratedAt).toLocaleString()} |
+                                    Showing {transactions.length} of {pagination.totalElements} transactions
                                 </p>
                             )}
                         </div>
@@ -457,6 +528,42 @@ const FranchiseTransactionReport = ({ filters: commonFilters, isFranchise }) => 
                             </tbody>
                         </table>
                     </div>
+
+                    {/* Pagination Controls */}
+                    <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
+                        <div className="text-sm text-gray-700">
+                            Page {pagination.currentPage + 1} of {pagination.totalPages}
+                            <span className="ml-2 text-gray-500">
+                                ({pagination.totalElements} total transactions)
+                            </span>
+                        </div>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => handlePageChange(pagination.currentPage - 1)}
+                                disabled={!pagination.hasPrevious}
+                                className="px-3 py-1 text-sm border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                            >
+                                <ChevronLeft className="w-4 h-4" />
+                                Previous
+                            </button>
+                            <button
+                                onClick={() => handlePageChange(pagination.currentPage + 1)}
+                                disabled={!pagination.hasNext}
+                                className="px-3 py-1 text-sm border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                            >
+                                Next
+                                <ChevronRight className="w-4 h-4" />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Loading State */}
+            {loading && (
+                <div className="bg-white rounded-lg shadow-sm border p-8 text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
+                    <p className="text-sm text-gray-600">Loading transactions...</p>
                 </div>
             )}
 
