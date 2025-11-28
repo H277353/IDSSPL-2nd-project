@@ -26,7 +26,7 @@ public abstract class CustomerBase {
             message = "Invalid PAN number format")
     private String panNumber;
 
-    @NotBlank(message = "Registration number is required")
+
     private String registrationNumber;
 
     @NotBlank(message = "Address is required")

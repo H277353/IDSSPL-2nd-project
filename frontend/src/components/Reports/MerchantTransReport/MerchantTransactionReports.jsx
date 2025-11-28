@@ -48,8 +48,7 @@ const MerchantTransactionReports = ({ filters: commonFilters, userType }) => {
                 setSummary(response.data.data.summary);
                 setReportInfo({
                     reportGeneratedAt: response.data.data.reportGeneratedAt,
-                    totalPages: response.data.data.totalPages,
-                    totalElements: response.data.data.totalElements,
+                    reportType: response.data.data.reportType,
                 });
                 setPagination({
                     currentPage: page,
@@ -80,11 +79,9 @@ const MerchantTransactionReports = ({ filters: commonFilters, userType }) => {
                 includeTaxes: false,
             };
 
-            // If ALL merchants selected
             if (localFilters.selectedMerchant === 'ALL') {
                 params.merchantType = merchantType.toUpperCase();
             } else {
-                // Single merchant - add merchantId
                 params.merchantId = isMerchant ? customerId : localFilters.selectedMerchant;
             }
 
@@ -164,6 +161,10 @@ const MerchantTransactionReports = ({ filters: commonFilters, userType }) => {
                 header: 'Settled On',
                 cell: info => <span className="text-xs text-gray-600">{new Date(info.getValue()).toLocaleDateString()}</span>
             }),
+            service: columnHelper.accessor('service', {
+                header: 'Service',
+                cell: info => <span className="text-xs text-gray-700">{info.getValue()}</span>
+            }),
             txnAmount: columnHelper.accessor('txnAmount', {
                 header: 'Transaction Amount',
                 cell: info => <span className="font-semibold text-xs text-blue-600">₹{(info.getValue() || 0).toLocaleString()}</span>
@@ -232,7 +233,7 @@ const MerchantTransactionReports = ({ filters: commonFilters, userType }) => {
     }, []);
 
     const columnPriority = [
-        'customTxnId', 'txnId', 'actionOnBalance', 'txnDate', 'settleDate', 'txnAmount', 'settleAmount',
+        'customTxnId', 'txnId', 'actionOnBalance', 'txnDate', 'settleDate', 'service', 'txnAmount', 'settleAmount',
         'systemFee', 'commissionAmount', 'merchantName', 'franchiseName', 'brandType',
         'cardType', 'authCode', 'tid', 'cardClassification', 'state',
         'settlementPercentage', 'merchantRate', 'franchiseRate', 'commissionRate'
@@ -277,6 +278,7 @@ const MerchantTransactionReports = ({ filters: commonFilters, userType }) => {
             actionOnBalance: { header: 'Action', format: val => val },
             txnDate: { header: 'Transaction Date', format: val => new Date(val).toLocaleString() },
             settleDate: { header: 'Settled On', format: val => new Date(val).toLocaleString() },
+            service: { header: 'Service', format: val => val },
             txnAmount: { header: 'Transaction Amount (₹)', format: val => val },
             settleAmount: { header: 'Net Amount (₹)', format: val => val },
             systemFee: { header: 'System Fee (₹)', format: val => val },
@@ -313,6 +315,7 @@ const MerchantTransactionReports = ({ filters: commonFilters, userType }) => {
                     actionOnBalance: { header: 'Action', format: val => val },
                     txnDate: { header: 'Transaction Date', format: val => new Date(val).toLocaleString() },
                     settleDate: { header: 'Settled On', format: val => new Date(val).toLocaleString() },
+                    service: { header: 'Service', format: val => val },
                     txnAmount: { header: 'Transaction Amount', format: val => val },
                     settleAmount: { header: 'Net Amount', format: val => val },
                     systemFee: { header: 'System Fee', format: val => val },
@@ -425,13 +428,21 @@ const MerchantTransactionReports = ({ filters: commonFilters, userType }) => {
                             <div className="bg-blue-50 p-2 rounded text-xs">
                                 <div className="flex justify-between">
                                     <span>Avg Transaction</span>
-                                    <span className="font-medium">₹{summary?.averageTransactionValue?.toFixed(0) || 0}</span>
+                                    <span className="font-medium">
+                                        ₹{summary?.totalTransactionAmount && summary?.totalTransactions
+                                            ? (summary.totalTransactionAmount / summary.totalTransactions).toFixed(0)
+                                            : 0}
+                                    </span>
                                 </div>
                             </div>
                             <div className="bg-purple-50 p-2 rounded text-xs">
                                 <div className="flex justify-between">
                                     <span>Success Rate</span>
-                                    <span className="font-medium">{summary?.successRate || 100}%</span>
+                                    <span className="font-medium">
+                                        {summary?.totalTransactions && summary?.successCount
+                                            ? ((summary.successCount / summary.totalTransactions) * 100).toFixed(1)
+                                            : 100}%
+                                    </span>
                                 </div>
                             </div>
                         </div>
@@ -457,55 +468,87 @@ const MerchantTransactionReports = ({ filters: commonFilters, userType }) => {
                 />
             </div>
 
+            {/* Summary Cards - UPDATED TO MATCH FIRST COMPONENT */}
             {summary && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="bg-white rounded-lg shadow-sm border p-4">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-xs font-medium text-gray-600">Total Transactions</p>
-                                <p className="text-lg font-bold text-gray-900">{summary.totalTransactions}</p>
+                <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="bg-white rounded-lg shadow-sm border p-4">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-xs font-medium text-gray-600">Total Transactions</p>
+                                    <p className="text-2xl font-bold text-gray-900">{summary.totalTransactions?.toLocaleString()}</p>
+                                    <p className="text-xs text-gray-500 mt-1">Success: {summary.successCount} | Failed: {summary.failureCount}</p>
+                                </div>
+                                <FileText className="w-8 h-8 text-purple-600" />
                             </div>
-                            <FileText className="w-6 h-6 text-blue-600" />
+                        </div>
+
+                        <div className="bg-white rounded-lg shadow-sm border p-4">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-xs font-medium text-gray-600">Settlement Amount</p>
+                                    <p className="text-2xl font-bold text-blue-900">₹{summary.totalSettlementReceived?.toLocaleString()}</p>
+                                    <p className="text-xs text-blue-600 mt-1">{summary.settlementCount} settlements</p>
+                                </div>
+                                <TrendingUp className="w-8 h-8 text-blue-600" />
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-lg shadow-sm border p-4">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-xs font-medium text-gray-600">
+                                        {isFranchiseMerchant ? 'Commission Paid' : 'Charges Paid'}
+                                    </p>
+                                    <p className="text-2xl font-bold text-red-900">
+                                        ₹{(isFranchiseMerchant ? totalCommission : summary.totalChargesPaid)?.toLocaleString()}
+                                    </p>
+                                    <p className="text-xs text-gray-500 mt-1">Net: ₹{summary.netBalance?.toLocaleString()}</p>
+                                </div>
+                                <DollarSign className="w-8 h-8 text-red-600" />
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-lg shadow-sm border p-4">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-xs font-medium text-gray-600">Payouts</p>
+                                    <p className="text-2xl font-bold text-orange-900">₹{summary.totalPayoutAmount?.toLocaleString()}</p>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Success: {summary.successfulPayouts} | Pending: {summary.pendingPayouts}
+                                    </p>
+                                </div>
+                                <TrendingUp className="w-8 h-8 text-orange-600" />
+                            </div>
                         </div>
                     </div>
 
-                    <div className="bg-white rounded-lg shadow-sm border p-4">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-xs font-medium text-gray-600">Total Amount</p>
-                                <p className="text-lg font-bold text-gray-900">₹{summary.totalAmount?.toLocaleString()}</p>
+                    {/* Additional Summary Info - NEW SECTION */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="bg-white rounded-lg shadow-sm border p-3">
+                            <p className="text-xs font-medium text-gray-600 mb-2">Credit vs Debit</p>
+                            <div className="flex justify-between text-sm">
+                                <span className="text-green-600">Credit: ₹{summary.netCreditAmount?.toLocaleString()}</span>
+                                <span className="text-red-600">Debit: ₹{Math.abs(summary.netDebitAmount)?.toLocaleString()}</span>
                             </div>
-                            <TrendingUp className="w-6 h-6 text-green-600" />
                         </div>
-                    </div>
 
-                    <div className="bg-white rounded-lg shadow-sm border p-4">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-xs font-medium text-gray-600">Net Amount</p>
-                                <p className="text-lg font-bold text-green-600">₹{summary.totalNetAmount?.toLocaleString()}</p>
+                        <div className="bg-white rounded-lg shadow-sm border p-3">
+                            <p className="text-xs font-medium text-gray-600 mb-2">Refunds</p>
+                            <div className="text-sm">
+                                <span className="text-gray-900">{summary.refundCount} refunds</span>
+                                <span className="text-gray-600 ml-2">₹{summary.totalRefundAmount?.toLocaleString()}</span>
                             </div>
-                            <TrendingUp className="w-6 h-6 text-green-600" />
                         </div>
-                    </div>
 
-                    <div className="bg-white rounded-lg shadow-sm border p-4">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-xs font-medium text-gray-600">
-                                    {isFranchiseMerchant ? 'Total Commission' : 'Total Charges'}
-                                </p>
-                                <p className="text-lg font-bold text-orange-600">
-                                    ₹{(isFranchiseMerchant ? totalCommission : summary.totalCharges)?.toLocaleString()}
-                                </p>
+                        <div className="bg-white rounded-lg shadow-sm border p-3">
+                            <p className="text-xs font-medium text-gray-600 mb-2">Status Breakdown</p>
+                            <div className="flex gap-3 text-sm">
+                                <span className="text-gray-600">Pending: {summary.pendingCount}</span>
                             </div>
-                            {isFranchiseMerchant ?
-                                <DollarSign className="w-6 h-6 text-orange-600" /> :
-                                <TrendingDown className="w-6 h-6 text-red-600" />
-                            }
                         </div>
                     </div>
-                </div>
+                </>
             )}
 
             {transactions.length > 0 && renderCardAnalysis()}
@@ -552,7 +595,7 @@ const MerchantTransactionReports = ({ filters: commonFilters, userType }) => {
                                 {table.getHeaderGroups().map(headerGroup => (
                                     <tr key={headerGroup.id}>
                                         {headerGroup.headers.map(header => (
-                                            <th key={header.id} className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                                            <th key={header.id} className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-widerwhitespace-nowrap">
                                                 {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                                             </th>
                                         ))}
@@ -571,9 +614,7 @@ const MerchantTransactionReports = ({ filters: commonFilters, userType }) => {
                                 ))}
                             </tbody>
                         </table>
-                    </div>
-
-                    <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
+                    </div><div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
                         <div className="text-sm text-gray-700">
                             Page {pagination.currentPage + 1} of {pagination.totalPages}
                             <span className="ml-2 text-gray-500">
@@ -619,5 +660,4 @@ const MerchantTransactionReports = ({ filters: commonFilters, userType }) => {
         </div>
     );
 };
-
 export default MerchantTransactionReports;
