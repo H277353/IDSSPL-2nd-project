@@ -40,9 +40,14 @@ public interface FranchiseSettlementBatchRepository extends JpaRepository<Franch
             COALESCE(SUM(f.totalNetAmount), 0.0)
         )
         FROM FranchiseSettlementBatch f
-        WHERE f.createdBy = :createdBy
-        AND DATE(f.createdAt) = CURRENT_DATE
+        WHERE DATE(f.createdAt) = CURRENT_DATE
     """)
     SettlementActivityStatsDTO getTodaysFranchiseSettlementStats(@Param("createdBy") String createdBy);
 
 }
+
+
+
+
+//f.createdBy = :createdBy removed this so to get today settlement in whole system
+//        AND

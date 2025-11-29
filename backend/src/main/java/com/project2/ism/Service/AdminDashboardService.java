@@ -82,9 +82,13 @@ public class AdminDashboardService {
 
         SettlementActivityStatsDTO merchantStats =
                 merchantSettlementBatchRepository.getTodaysDirectMerchantSettlementStats(createdBy);
+        SettlementActivityStatsDTO franchiseMerchantSettlementStats =
+                merchantSettlementBatchRepository.getTodaysMerchantSettlementStats(createdBy);
+
         Map<String, Object> settlementActivity = new HashMap<>();
         settlementActivity.put("franchiseSettlements", franchiseStats);
         settlementActivity.put("directMerchantSettlements", merchantStats);
+        settlementActivity.put("franchiseMerchantSettlements", franchiseMerchantSettlementStats);
         dashboardStats.put("settlementActivity", settlementActivity);
 
         List<CustomerSchemeAssignmentDTO> expiringSchemes = customerSchemeAssignmentService.getTop5ExpiryDateForDashboard();

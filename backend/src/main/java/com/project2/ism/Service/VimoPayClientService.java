@@ -16,6 +16,7 @@ import com.project2.ism.Model.Payment.PaymentVendorResponseLog;
 import com.project2.ism.Repository.PaymentVendorResponseLogRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -48,10 +49,20 @@ public class VimoPayClientService {
     private final AtomicReference<Instant> tokenFetchedAt = new AtomicReference<>(null);
 
     // Paths (left empty for you to fill during testing)
-    private static final String TOKEN_PATH = "/payoutapi/api/signature/authorizeuat";      // e.g. "/auth/token"
-    private static final String BANKS_PATH = "/masterapi/api/master/banklistuat";      // e.g. "/payout/banks"
-    private static final String STATES_PATH = "/masterapi/api/master/statelistuat";     // e.g. "/payout/states"
-    private static final String PURPOSES_PATH = "/masterapi/api/master/purposelistuat";   // e.g. "/payout/purposes"
+    @Value("${vimo.api.path.token}")
+    private String TOKEN_PATH;
+
+    @Value("${vimo.api.path.banks}")
+    private String BANKS_PATH;
+
+    @Value("${vimo.api.path.states}")
+    private String STATES_PATH;
+
+    @Value("${vimo.api.path.purposes}")
+    private String PURPOSES_PATH;
+
+    @Value("${vimo.api.path.payout}")
+    private String PAYOUT_PATH;
 
     public VimoPayClientService(PaymentVendorCredentialsService credentialsService,
                                 PaymentVendorCryptoService cryptoService,
@@ -422,7 +433,7 @@ public class VimoPayClientService {
     private PayoutResult submitPayoutInternal(Long vendorId, String baseUrl, String token,
                                               PayoutRequest request, BigDecimal charges,
                                               boolean isRetry) {
-        String payoutPath = "/payoutapi/api/payment/payoutsuat"; // adjust as per vendor API
+        //String payoutPath = "/payoutapi/api/payment/payoutsuat"; // adjust as per vendor API
 
         try {
             // Build request payload
@@ -450,7 +461,7 @@ public class VimoPayClientService {
             String encryptedPayload = cryptoService.encryptForVendor(vendorId, plainJson);
 
             // Send encrypted request
-            VendorApiResponse wrapper = callPostEncrypted(vendorId, baseUrl, payoutPath, token, encryptedPayload);
+            VendorApiResponse wrapper = callPostEncrypted(vendorId, baseUrl, PAYOUT_PATH, token, encryptedPayload);
 
             if (!"000".equals(wrapper.getResponseCode())) {
                 log.warn("Payout API returned error: code={} msg={}",

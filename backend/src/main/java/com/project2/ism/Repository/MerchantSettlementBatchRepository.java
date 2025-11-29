@@ -57,10 +57,27 @@ public interface MerchantSettlementBatchRepository extends JpaRepository<Merchan
             COALESCE(SUM(m.totalNetAmount), 0.0)
         )
         FROM MerchantSettlementBatch m
-        WHERE m.createdBy = :createdBy
-        AND m.franchiseBatchId IS NULL
+        WHERE m.franchiseBatchId IS NULL
         AND DATE(m.createdAt) = CURRENT_DATE
     """)
     SettlementActivityStatsDTO getTodaysDirectMerchantSettlementStats(@Param("createdBy") String createdBy);
+
+    @Query("""
+        SELECT new com.project2.ism.DTO.AdminDTO.SettlementActivityStatsDTO(
+            COUNT(m.id),
+            COALESCE(SUM(m.processedTransactions), 0L),
+            COALESCE(SUM(m.totalAmount), 0.0),
+            COALESCE(SUM(m.totalFees), 0.0),
+            COALESCE(SUM(m.totalNetAmount), 0.0)
+        )
+        FROM MerchantSettlementBatch m
+        WHERE m.franchiseBatchId IS NOT NULL
+        AND DATE(m.createdAt) = CURRENT_DATE
+    """)
+    SettlementActivityStatsDTO getTodaysMerchantSettlementStats(@Param("createdBy") String createdBy);
 }
 
+
+
+//m.createdBy = :createdBy removed this so to get today settlement in whole system
+//        AND

@@ -84,6 +84,16 @@ public class Product {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+
+    /**
+     * Flag to enable instant settlement (T+0) for this product
+     * When enabled, transactions from devices with this product will be
+     * automatically settled immediately upon Razorpay notification
+     */
+    @Column(name = "instant_settlement_enabled", nullable = false)
+    private Boolean instantSettlementEnabled = false;
+
+
     // Default constructor
     public Product() {}
 
@@ -243,6 +253,14 @@ public class Product {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public Boolean getInstantSettlementEnabled() {
+        return instantSettlementEnabled;
+    }
+
+    public void setInstantSettlementEnabled(Boolean instantSettlementEnabled) {
+        this.instantSettlementEnabled = instantSettlementEnabled;
     }
 
     // Custom validation method

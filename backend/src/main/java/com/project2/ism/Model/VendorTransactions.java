@@ -212,6 +212,34 @@ public class VendorTransactions {
     @Column(name = "settlement_batch_id")
     private Long settlementBatchId;
 
+
+
+    //--------------new fields added as per razorpay
+    @Column(name = "org_code")
+    private String orgCode;
+
+    @Column(name = "merchant_code")
+    private String merchantCode;
+
+    @Column(name = "card_last_four")
+    private String cardLastFourDigit;
+
+    @Column(name = "card_bin")
+    private String paymentCardBin;
+
+    @Column(name = "settlement_status")
+    private String settlementStatus;
+
+    @Column(name = "amount_original")
+    private BigDecimal amountOriginal;
+
+    @Column(name = "reference_transaction_id")
+    private String referenceTransactionId;
+
+    @Column(name = "payment_gateway")
+    private String paymentGateway;
+
+
     public VendorTransactions() {
     }
 
@@ -653,5 +681,69 @@ public class VendorTransactions {
 
     public void setSettlementBatchId(Long settlementBatchId) {
         this.settlementBatchId = settlementBatchId;
+    }
+
+    public String getOrgCode() {
+        return orgCode;
+    }
+
+    public void setOrgCode(String orgCode) {
+        this.orgCode = orgCode;
+    }
+
+    public String getMerchantCode() {
+        return merchantCode;
+    }
+
+    public void setMerchantCode(String merchantCode) {
+        this.merchantCode = merchantCode;
+    }
+
+    public String getCardLastFourDigit() {
+        return cardLastFourDigit;
+    }
+
+    public void setCardLastFourDigit(String cardLastFourDigit) {
+        this.cardLastFourDigit = cardLastFourDigit;
+    }
+
+    public String getPaymentCardBin() {
+        return paymentCardBin;
+    }
+
+    public void setPaymentCardBin(String paymentCardBin) {
+        this.paymentCardBin = paymentCardBin;
+    }
+
+    public String getSettlementStatus() {
+        return settlementStatus;
+    }
+
+    public void setSettlementStatus(String settlementStatus) {
+        this.settlementStatus = settlementStatus;
+    }
+
+    public BigDecimal getAmountOriginal() {
+        return amountOriginal;
+    }
+
+    public void setAmountOriginal(BigDecimal amountOriginal) {
+        this.amountOriginal = amountOriginal;
+    }
+
+    public String getReferenceTransactionId() {
+        return referenceTransactionId;
+    }
+
+    public void setReferenceTransactionId(String referenceTransactionId) {
+        this.referenceTransactionId = referenceTransactionId;
+    }
+
+    public String getPaymentGateway() {
+        return paymentGateway;
+    }
+
+    public void setPaymentGateway(String paymentGateway) {
+        this.paymentGateway = paymentGateway;
     }
 }

@@ -36,6 +36,30 @@ import java.util.concurrent.Executor;
 @EnableAsync
 public class AsyncConfig {
 
+    //----- for razorpay
+    @Bean("razorpayNotificationExecutor")
+    public Executor razorpayNotificationExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(4);
+        executor.setMaxPoolSize(8);
+        executor.setQueueCapacity(200);
+        executor.setThreadNamePrefix("razorpay-notify-");
+        executor.initialize();
+        return executor;
+    }
+
+    //----- NEW: for instant settlement (T+0) processing
+    @Bean("instantSettlementExecutor")
+    public Executor instantSettlementExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(5);
+        executor.setMaxPoolSize(15);
+        executor.setQueueCapacity(300);
+        executor.setThreadNamePrefix("instant-settle-");
+        executor.initialize();
+        return executor;
+    }
+
     @Bean("settlementExecutor")
     public Executor settlementExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
