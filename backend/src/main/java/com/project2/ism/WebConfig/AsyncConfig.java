@@ -48,6 +48,17 @@ public class AsyncConfig {
         return executor;
     }
 
+    @Bean("payoutExecutor")
+    public Executor payoutExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(5);
+        executor.setMaxPoolSize(10);
+        executor.setQueueCapacity(100);
+        executor.setThreadNamePrefix("payout-callback-");
+        executor.initialize();
+        return executor;
+    }
+
     //----- NEW: for instant settlement (T+0) processing
     @Bean("instantSettlementExecutor")
     public Executor instantSettlementExecutor() {
