@@ -96,25 +96,24 @@ public class PayoutController {
     @PostMapping("/callback")
     public ResponseEntity<Object> receiveVendorCallback(@RequestBody Map<String, Object> body) {
 
+        // Immediately acknowledge SUCCESS to vendor
         try {
-            payoutService.handleEncryptedCallback(body);
-            return ResponseEntity.ok(
-                    Map.of(
-                            "successStatus", true,
-                            "message", "Success",
-                            "responseCode", "000"
-                    )
-            );
+            // async processing → no blocking
+            payoutService.handleEncryptedCallbackAsync(body);
 
-        } catch (Exception e) {
-            return ResponseEntity.status(500)
-                    .body(Map.of(
-                            "successStatus", false,
-                            "message", e.getMessage(),
-                            "responseCode", "500"
-                    ));
+        } catch (Exception ignored) {
+            // even if async fails, WE STILL RETURN SUCCESS
         }
+
+        return ResponseEntity.ok(
+                Map.of(
+                        "successStatus", true,
+                        "message", "Success",
+                        "responseCode", "000"
+                )
+        );
     }
+
 
     /**
      * Get payout transaction by merchant reference

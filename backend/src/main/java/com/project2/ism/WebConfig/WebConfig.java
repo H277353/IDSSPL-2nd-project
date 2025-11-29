@@ -28,7 +28,8 @@ public class WebConfig implements WebMvcConfigurer {
                         "/css/**",
                         "/js/**",
                         "/images/**",
-                        "/razorpay/notification"
+                        "/razorpay/notification",
+                        "/admin/logs"
                 );
     }
 }
