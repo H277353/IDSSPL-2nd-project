@@ -2,6 +2,8 @@ package com.project2.ism.Repository;
 
 import com.project2.ism.Model.Payment.PaymentVendorMonthlyLog;
 import com.project2.ism.Model.Payment.PaymentVendor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -37,4 +39,12 @@ public interface PaymentVendorMonthlyLogRepository extends JpaRepository<Payment
     List<PaymentVendorMonthlyLog> findByYearAndMonth(@Param("year") Integer year,
                                                      @Param("month") Integer month);
 
+    // NEW METHODS FOR LogService
+    Page<PaymentVendorMonthlyLog> findByOrderByYearDescMonthDesc(Pageable pageable);
+
+    Page<PaymentVendorMonthlyLog> findByPaymentVendorIdOrderByYearDescMonthDesc(Long vendorId, Pageable pageable);
+
+    Optional<PaymentVendorMonthlyLog> findByPaymentVendorIdAndYearAndMonth(Long vendorId, Integer year, Integer month);
+
+    List<PaymentVendorMonthlyLog> findByPaymentVendorIdAndYearOrderByMonthDesc(Long vendorId, Integer year);
 }

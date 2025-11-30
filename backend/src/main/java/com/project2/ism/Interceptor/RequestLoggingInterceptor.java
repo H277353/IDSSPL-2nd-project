@@ -5,10 +5,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.project2.ism.Model.RequestLog;
 import com.project2.ism.Service.JwtService;
-import com.project2.ism.Service.RequestLogService;
+import com.project2.ism.Service.LogService;
+
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.factory.annotation.Autowired;
+
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.util.ContentCachingRequestWrapper;
@@ -26,14 +27,16 @@ public class RequestLoggingInterceptor implements HandlerInterceptor {
     private static final String START_TIME_ATTR = "startTime";
     private static final String REQUEST_LOG_ATTR = "requestLog";
 
-    @Autowired
-    private RequestLogService requestLogService;
 
-    @Autowired
-    private JwtService jwtUtil;
+    private final LogService logService;
+    private final JwtService jwtUtil;
+    private final ObjectMapper objectMapper;
 
-    @Autowired
-    private ObjectMapper objectMapper;
+    public RequestLoggingInterceptor(LogService logService, JwtService jwtUtil, ObjectMapper objectMapper) {
+        this.logService = logService;
+        this.jwtUtil = jwtUtil;
+        this.objectMapper = objectMapper;
+    }
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
@@ -170,7 +173,7 @@ public class RequestLoggingInterceptor implements HandlerInterceptor {
         }
 
         // Save the log asynchronously
-        requestLogService.saveLogAsync(requestLog);
+        logService.saveRequestLogAsync(requestLog);
     }
 
     private boolean shouldSkipLogging(String uri) {
@@ -179,7 +182,9 @@ public class RequestLoggingInterceptor implements HandlerInterceptor {
                 uri.contains("/actuator/") ||
                 uri.contains("/health") ||
                 uri.contains("/swagger") ||
-                uri.contains("/api-docs");
+                uri.contains("/api-docs") ||
+        uri.contains("/razorpay") ||
+                uri.contains("/admin-logs");
     }
 
     private String getFullURL(HttpServletRequest request) {
