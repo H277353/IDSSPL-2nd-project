@@ -75,9 +75,15 @@ public class PayoutService {
 
 
     @Async("payoutExecutor")
+    @Transactional
     public void handleEncryptedCallbackAsync(Map<String, Object> body) {
-        handleEncryptedCallback(body); // existing method
+        try {
+            handleEncryptedCallback(body);
+        } catch (Exception ex) {
+            //callbackLogService.logInternalError(ex, body);
+        }
     }
+
 
     /**
      * Initiate payout - validates balance, calculates charges, deducts from wallet,
