@@ -14,23 +14,21 @@ import java.time.LocalDateTime;
 @Service
 public class WalletAdjustmentService {
 
-    @Autowired
-    private FranchiseRepository franchiseRepository;
+    private final FranchiseRepository franchiseRepository;
+    private final MerchantRepository merchantRepository;
+    private final FranchiseWalletRepository franchiseWalletRepository;
+    private final MerchantWalletRepository merchantWalletRepository;
+    private final FranchiseTransDetRepository franchiseTransactionRepository;
+    private final MerchantTransDetRepository merchantTransactionRepository;
 
-    @Autowired
-    private MerchantRepository merchantRepository;
-
-    @Autowired
-    private FranchiseWalletRepository franchiseWalletRepository;
-
-    @Autowired
-    private MerchantWalletRepository merchantWalletRepository;
-
-    @Autowired
-    private FranchiseTransDetRepository franchiseTransactionRepository;
-
-    @Autowired
-    private MerchantTransDetRepository merchantTransactionRepository;
+    public WalletAdjustmentService(FranchiseRepository franchiseRepository, MerchantRepository merchantRepository, FranchiseWalletRepository franchiseWalletRepository, MerchantWalletRepository merchantWalletRepository, FranchiseTransDetRepository franchiseTransactionRepository, MerchantTransDetRepository merchantTransactionRepository) {
+        this.franchiseRepository = franchiseRepository;
+        this.merchantRepository = merchantRepository;
+        this.franchiseWalletRepository = franchiseWalletRepository;
+        this.merchantWalletRepository = merchantWalletRepository;
+        this.franchiseTransactionRepository = franchiseTransactionRepository;
+        this.merchantTransactionRepository = merchantTransactionRepository;
+    }
 
     @Transactional
     public void adjustFranchiseWallet(Long franchiseId, String actionOnBalance, BigDecimal amount, String remark) {
@@ -70,7 +68,12 @@ public class WalletAdjustmentService {
 
         FranchiseTransactionDetails transaction = new FranchiseTransactionDetails();
         transaction.setFranchise(franchise);
-        transaction.setAmount(amount);
+        if (actionOnBalance.equals("DEBIT")) {
+            transaction.setAmount(amount.negate());
+        } else {
+            transaction.setAmount(amount);
+        }
+
         transaction.setBalBeforeTran(balanceBeforeTran);
         transaction.setBalAfterTran(balanceAfterTran);
         transaction.setFinalBalance(balanceAfterTran);
@@ -80,11 +83,15 @@ public class WalletAdjustmentService {
         transaction.setTransactionDate(now);
         transaction.setUpdatedDateAndTimeOfTransaction(now);
         transaction.setTranStatus("SUCCESS");
+        transaction.setService("ADMIN_ADJUSTMENT");
 
         franchiseTransactionRepository.save(transaction);
 
+        BigDecimal txnAmount = actionOnBalance.equalsIgnoreCase("DEBIT")
+                ? amount.negate()
+                : amount;
         franchiseWallet.setAvailableBalance(balanceAfterTran);
-        franchiseWallet.setLastUpdatedAmount(amount);
+        franchiseWallet.setLastUpdatedAmount(txnAmount);
         franchiseWallet.setLastUpdatedAt(now);
 
         franchiseWalletRepository.save(franchiseWallet);
@@ -128,7 +135,12 @@ public class WalletAdjustmentService {
 
         MerchantTransactionDetails transaction = new MerchantTransactionDetails();
         transaction.setMerchant(merchant);
-        transaction.setAmount(amount);
+        if (actionOnBalance.equals("DEBIT")) {
+            transaction.setAmount(amount.negate());
+        } else {
+            transaction.setAmount(amount);
+        }
+
         transaction.setBalBeforeTran(balanceBeforeTran);
         transaction.setBalAfterTran(balanceAfterTran);
         transaction.setFinalBalance(balanceAfterTran);
@@ -138,11 +150,16 @@ public class WalletAdjustmentService {
         transaction.setTransactionDate(now);
         transaction.setUpdatedDateAndTimeOfTransaction(now);
         transaction.setTranStatus("SUCCESS");
+        transaction.setService("ADMIN_ADJUSTMENT");
 
         merchantTransactionRepository.save(transaction);
 
+        BigDecimal txnAmount = actionOnBalance.equalsIgnoreCase("DEBIT")
+                ? amount.negate()
+                : amount;
+
         merchantWallet.setAvailableBalance(balanceAfterTran);
-        merchantWallet.setLastUpdatedAmount(amount);
+        merchantWallet.setLastUpdatedAmount(txnAmount);
         merchantWallet.setLastUpdatedAt(now);
 
         merchantWalletRepository.save(merchantWallet);
