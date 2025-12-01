@@ -123,14 +123,29 @@ public class AsyncConfig {
         return executor;
     }
 
-    // Bulk processing: Manual settlements + franchise processing (can wait)
-    @Bean("bulkAsyncExecutor")
-    public Executor bulkAsyncExecutor() {
+    // ========== SETTLEMENT EXECUTORS (SPLIT BY ROLE) ==========
+
+    // Coordinators: Orchestrate batch processing (lightweight, few threads)
+    @Bean("settlementCoordinatorExecutor")
+    public Executor settlementCoordinatorExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(2);
-        executor.setMaxPoolSize(4);
+        executor.setCorePoolSize(1);        // Usually 1 franchise batch at a time
+        executor.setMaxPoolSize(2);         // Allow 2 concurrent franchise batches max
+        executor.setQueueCapacity(50);
+        executor.setThreadNamePrefix("settlement-coordinator-");
+        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+        executor.initialize();
+        return executor;
+    }
+
+    // Workers: Actually process settlements (heavier workload, more threads)
+    @Bean("settlementWorkerExecutor")
+    public Executor settlementWorkerExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(3);        // Process 3 merchants/batches in parallel
+        executor.setMaxPoolSize(6);         // Burst to 6 during peak
         executor.setQueueCapacity(300);
-        executor.setThreadNamePrefix("bulk-");
+        executor.setThreadNamePrefix("settlement-worker-");
         executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
         executor.initialize();
         return executor;
@@ -152,18 +167,19 @@ public class AsyncConfig {
         return criticalAsyncExecutor();
     }
 
-    @Bean("settlementExecutor")
-    public Executor settlementExecutor() {
-        return bulkAsyncExecutor();
-    }
-
-    @Bean("merchantSettlementExecutor")
-    public Executor merchantSettlementExecutor() {
-        return bulkAsyncExecutor();
-    }
-
-    @Bean("franchiseSettlementExecutor")
+    // Settlement beans - IMPORTANT MAPPING
+    @Bean("franchiseSettlementExecutor")  // Coordinator role
     public Executor franchiseSettlementExecutor() {
-        return bulkAsyncExecutor();
+        return settlementCoordinatorExecutor();
+    }
+
+    @Bean("merchantSettlementExecutor")   // Worker role
+    public Executor merchantSettlementExecutor() {
+        return settlementWorkerExecutor();
+    }
+
+    @Bean("settlementExecutor")           // Worker role (for direct merchant batches)
+    public Executor settlementExecutor() {
+        return settlementWorkerExecutor();
     }
 }
