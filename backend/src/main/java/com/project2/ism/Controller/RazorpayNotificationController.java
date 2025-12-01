@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 
@@ -26,16 +27,14 @@ public class RazorpayNotificationController {
     }
 
     @PostMapping("/notification")
-    public ResponseEntity<String> receiveNotification(
-            @RequestHeader(value = "X-API-KEY", required = false) String incomingSecret,
-            @RequestBody String rawJson
-    ) {
+    @PreAuthorize("hasRole('RAZORPAY')")   // IMPORTANT
+    public ResponseEntity<String> receiveNotification(@RequestBody String rawJson) {
 
-        // 1. Auth check – static secret based
-        if (incomingSecret == null || !incomingSecret.equals(razorpaySecret)) {
-            log.warn("Unauthorized Razorpay notification attempt");
-            return ResponseEntity.status(401).body("Unauthorized");
-        }
+//        // 1. Auth check – static secret based
+//        if (incomingSecret == null || !incomingSecret.equals(razorpaySecret)) {
+//            log.warn("Unauthorized Razorpay notification attempt");
+//            return ResponseEntity.status(401).body("Unauthorized");
+//        }
 
         // 2. Immediately acknowledge Razorpay
         asyncProcess(rawJson);

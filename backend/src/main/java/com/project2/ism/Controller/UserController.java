@@ -228,4 +228,32 @@ public class UserController {
                     .body(Map.of("error", "Something went wrong"));
         }
     }
+
+    @PostMapping("/create-system-user")
+    public ResponseEntity<?> createSystemUser(@RequestBody Map<String, String> request) {
+
+        String email = request.get("email");
+        String password = request.get("password");
+        String role = request.get("role");
+
+        if (email == null || password == null || role == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "email, password, and role are required"));
+        }
+
+        try {
+            User user = userService.createSystemUser(email, password, role);
+
+            return ResponseEntity.ok(Map.of(
+                    "message", "System user created successfully",
+                    "email", user.getEmail(),
+                    "role", user.getRole()
+            ));
+        } catch (Exception ex) {
+            return ResponseEntity.status(409)
+                    .body(Map.of("error", ex.getMessage()));
+        }
+    }
+
+
 }
