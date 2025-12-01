@@ -12,7 +12,7 @@ import java.util.UUID;
 @Service
 public class FileStorageService {
 
-    private final Path rootUploadPath = Paths.get("uploads");
+    private final Path rootUploadPath = Paths.get("uploads");  // TODO: remember to path to appl.prop and also copy from uploads/document to new place
 
     public FileStorageService() {
         try {
