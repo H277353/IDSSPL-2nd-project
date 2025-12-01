@@ -36,28 +36,74 @@ const MerchantTransactionReports = ({ filters: commonFilters, userType }) => {
                 status: 'SETTLED',
                 dateFilterType: localFilters.dateFilterType,
                 ...(localFilters.transactionType !== 'All' && { transactionType: localFilters.transactionType }),
-                merchantId: isMerchant ? customerId : localFilters.selectedMerchant,
-                page: page,
-                size: pagination.pageSize,
             };
 
-            const response = await api.get('/v1/reports/transactions/merchant/enhanced', { params });
+            // If "ALL" is selected, directly trigger export instead of paginated fetch
+            if (localFilters.selectedMerchant === 'ALL') {
+                const exportParams = {
+                    ...params,
+                    merchantType: merchantType.toUpperCase(),
+                    includeTaxes: false
+                };
 
-            if (response.data.success) {
-                setTransactions(response.data.data.transactions);
-                setSummary(response.data.data.summary);
+                const response = await api.get('/v1/reports/transactions/merchant/export-all', {
+                    params: exportParams,
+                    responseType: 'blob',
+                });
+
+                const blob = new Blob([response.data], {
+                    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                });
+
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = downloadUrl;
+
+                const disposition = response.headers['content-disposition'];
+                const filename = disposition
+                    ? disposition.split('filename=')[1].replace(/"/g, '')
+                    : `merchant_transactions_${merchantType.toLowerCase()}_${localFilters.startDate}_to_${localFilters.endDate}.xlsx`;
+
+                link.setAttribute('download', filename);
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                window.URL.revokeObjectURL(downloadUrl);
+
+                // Don't set transactions - show message instead
+                setTransactions([]);
+                setSummary(null);
                 setReportInfo({
-                    reportGeneratedAt: response.data.data.reportGeneratedAt,
-                    reportType: response.data.data.reportType,
+                    exportTriggered: true,
+                    message: `Export initiated for all ${merchantType} merchants`
                 });
-                setPagination({
-                    currentPage: page,
-                    pageSize: pagination.pageSize,
-                    totalPages: response.data.data.totalPages,
-                    totalElements: response.data.data.totalElements,
-                    hasNext: response.data.data.hasNext,
-                    hasPrevious: response.data.data.hasPrevious
+            } else {
+                // Normal paginated fetch for specific merchant
+                const response = await api.get('/v1/reports/transactions/merchant/enhanced', {
+                    params: {
+                        ...params,
+                        merchantId: isMerchant ? customerId : localFilters.selectedMerchant,
+                        page: page,
+                        size: pagination.pageSize,
+                    }
                 });
+
+                if (response.data.success) {
+                    setTransactions(response.data.data.transactions);
+                    setSummary(response.data.data.summary);
+                    setReportInfo({
+                        reportGeneratedAt: response.data.data.reportGeneratedAt,
+                        reportType: response.data.data.reportType,
+                    });
+                    setPagination({
+                        currentPage: page,
+                        pageSize: pagination.pageSize,
+                        totalPages: response.data.data.totalPages,
+                        totalElements: response.data.data.totalElements,
+                        hasNext: response.data.data.hasNext,
+                        hasPrevious: response.data.data.hasPrevious
+                    });
+                }
             }
         } catch (error) {
             console.error('Error fetching transactions:', error);
