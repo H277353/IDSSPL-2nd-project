@@ -199,50 +199,6 @@ public interface FranchiseTransDetRepository extends JpaRepository<FranchiseTran
             @Param("status") String status,
             @Param("transactionType") String transactionType);
 
-//    @Query("SELECT " +
-//            "COUNT(ftd) as totalTransactions, " +
-//            "COALESCE(SUM(ftd.amount), 0) as totalAmount, " +
-//            "COALESCE(SUM(ftd.netAmount), 0) as totalCommission, " +
-//            "COALESCE(SUM(ftd.amount - ftd.netAmount), 0) as totalNetAmount, " +
-//            "COALESCE(AVG(ftd.amount), 0) as averageAmount, " +
-//            "COUNT(CASE WHEN ftd.tranStatus = 'SETTLED' THEN 1 END) as successCount, " +
-//            "COUNT(CASE WHEN ftd.tranStatus != 'SETTLED' THEN 1 END) as failureCount, " +
-//            "COUNT(DISTINCT CASE WHEN ftd.tranStatus = 'SETTLED' THEN ftd.vendorName END) as activeMerchants " +
-//            "FROM FranchiseTransactionDetails ftd WHERE " +
-//            "ftd.transactionDate BETWEEN :startDate AND :endDate " +
-//            "AND (:franchiseId IS NULL OR ftd.franchise.id = :franchiseId) " +
-//            //"AND (:status IS NULL OR ftd.tranStatus = :status) " +
-//            "AND (:transactionType IS NULL OR ftd.transactionType = :transactionType)")
-//    Map<String, Object> getFranchiseTransactionSummary(
-//            @Param("startDate") LocalDateTime startDate,
-//            @Param("endDate") LocalDateTime endDate,
-//            @Param("franchiseId") Long franchiseId,
-//            @Param("status") String status,
-//            @Param("transactionType") String transactionType);
-//
-//
-//
-//    // Summary based on settlement date
-//    @Query("SELECT " +
-//            "COUNT(ftd) as totalTransactions, " +
-//            "COALESCE(SUM(ftd.amount), 0) as totalAmount, " +
-//            "COALESCE(SUM(ftd.netAmount), 0) as totalCommission, " +
-//            "COALESCE(SUM(ftd.amount - ftd.netAmount), 0) as totalNetAmount, " +
-//            "COALESCE(AVG(ftd.amount), 0) as averageAmount, " +
-//            "COUNT(CASE WHEN ftd.tranStatus = 'SETTLED' THEN 1 END) as successCount, " +
-//            "COUNT(CASE WHEN ftd.tranStatus != 'SETTLED' THEN 1 END) as failureCount, " +
-//            "COUNT(DISTINCT CASE WHEN ftd.tranStatus = 'SETTLED' THEN ftd.vendorName END) as activeMerchants " +
-//            "FROM FranchiseTransactionDetails ftd WHERE " +
-//            "ftd.updatedDateAndTimeOfTransaction BETWEEN :startDate AND :endDate " +
-//            "AND (:franchiseId IS NULL OR ftd.franchise.id = :franchiseId) " +
-//            //"AND (:status IS NULL OR ftd.tranStatus = :status) " +
-//            "AND (:transactionType IS NULL OR ftd.transactionType = :transactionType)")
-//    Map<String, Object> getFranchiseTransactionSummaryBySettlementDate(
-//            @Param("startDate") LocalDateTime startDate,
-//            @Param("endDate") LocalDateTime endDate,
-//            @Param("franchiseId") Long franchiseId,
-//            @Param("status") String status,
-//            @Param("transactionType") String transactionType);
 
 // export excel
     // In FranchiseTransactionRepository
@@ -318,6 +274,50 @@ public interface FranchiseTransDetRepository extends JpaRepository<FranchiseTran
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate);
 
+//    @Query("SELECT " +
+//            "COUNT(ftd) as totalTransactions, " +
+//            "COALESCE(SUM(ftd.amount), 0) as totalAmount, " +
+//            "COALESCE(SUM(ftd.netAmount), 0) as totalCommission, " +
+//            "COALESCE(SUM(ftd.amount - ftd.netAmount), 0) as totalNetAmount, " +
+//            "COALESCE(AVG(ftd.amount), 0) as averageAmount, " +
+//            "COUNT(CASE WHEN ftd.tranStatus = 'SETTLED' THEN 1 END) as successCount, " +
+//            "COUNT(CASE WHEN ftd.tranStatus != 'SETTLED' THEN 1 END) as failureCount, " +
+//            "COUNT(DISTINCT CASE WHEN ftd.tranStatus = 'SETTLED' THEN ftd.vendorName END) as activeMerchants " +
+//            "FROM FranchiseTransactionDetails ftd WHERE " +
+//            "ftd.transactionDate BETWEEN :startDate AND :endDate " +
+//            "AND (:franchiseId IS NULL OR ftd.franchise.id = :franchiseId) " +
+//            //"AND (:status IS NULL OR ftd.tranStatus = :status) " +
+//            "AND (:transactionType IS NULL OR ftd.transactionType = :transactionType)")
+//    Map<String, Object> getFranchiseTransactionSummary(
+//            @Param("startDate") LocalDateTime startDate,
+//            @Param("endDate") LocalDateTime endDate,
+//            @Param("franchiseId") Long franchiseId,
+//            @Param("status") String status,
+//            @Param("transactionType") String transactionType);
+//
+//
+//
+//    // Summary based on settlement date
+//    @Query("SELECT " +
+//            "COUNT(ftd) as totalTransactions, " +
+//            "COALESCE(SUM(ftd.amount), 0) as totalAmount, " +
+//            "COALESCE(SUM(ftd.netAmount), 0) as totalCommission, " +
+//            "COALESCE(SUM(ftd.amount - ftd.netAmount), 0) as totalNetAmount, " +
+//            "COALESCE(AVG(ftd.amount), 0) as averageAmount, " +
+//            "COUNT(CASE WHEN ftd.tranStatus = 'SETTLED' THEN 1 END) as successCount, " +
+//            "COUNT(CASE WHEN ftd.tranStatus != 'SETTLED' THEN 1 END) as failureCount, " +
+//            "COUNT(DISTINCT CASE WHEN ftd.tranStatus = 'SETTLED' THEN ftd.vendorName END) as activeMerchants " +
+//            "FROM FranchiseTransactionDetails ftd WHERE " +
+//            "ftd.updatedDateAndTimeOfTransaction BETWEEN :startDate AND :endDate " +
+//            "AND (:franchiseId IS NULL OR ftd.franchise.id = :franchiseId) " +
+//            //"AND (:status IS NULL OR ftd.tranStatus = :status) " +
+//            "AND (:transactionType IS NULL OR ftd.transactionType = :transactionType)")
+//    Map<String, Object> getFranchiseTransactionSummaryBySettlementDate(
+//            @Param("startDate") LocalDateTime startDate,
+//            @Param("endDate") LocalDateTime endDate,
+//            @Param("franchiseId") Long franchiseId,
+//            @Param("status") String status,
+//            @Param("transactionType") String transactionType);
 
 
     // NEW QUERIES - Add these to your existing FranchiseTransDetRepository.java

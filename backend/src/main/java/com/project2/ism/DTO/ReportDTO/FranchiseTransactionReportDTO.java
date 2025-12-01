@@ -7,6 +7,10 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 
 
+// ============================================================================
+// FRANCHISE TRANSACTION REPORT DTO - IMPROVED
+// ============================================================================
+
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class FranchiseTransactionReportDTO {
     private String txnId;
@@ -17,14 +21,13 @@ public class FranchiseTransactionReportDTO {
     private LocalDateTime settleDate;
     private String authCode;
     private String tid;
-
-    private BigDecimal settlementRate; // merchant % of txnAmount
-    private BigDecimal settleAmount;         // raw merchant amount
-    private BigDecimal systemFee;            // raw system fee
-    private BigDecimal franchiseRate;        // calculated from txnAmount & franchiseCommission
-    private BigDecimal merchantRate;         // calculated from txnAmount & settleAmount
-    private BigDecimal commissionRate;       // merchantRate - franchiseRate
-    private BigDecimal commissionAmount;     // raw franchise commission
+    private BigDecimal settlementRate;
+    private BigDecimal settleAmount;
+    private BigDecimal systemFee;
+    private BigDecimal franchiseRate;
+    private BigDecimal merchantRate;
+    private BigDecimal commissionRate;
+    private BigDecimal commissionAmount;
     private BigDecimal systemFeeExGST;
     private BigDecimal gstAmount;
     private BigDecimal tdsAmount;
@@ -38,6 +41,9 @@ public class FranchiseTransactionReportDTO {
     private String state;
     private String service;
 
+    /**
+     * Enhanced constructor with explicit transaction type handling
+     */
     public FranchiseTransactionReportDTO(
             String txnId,
             Long customTxnId,
@@ -47,10 +53,10 @@ public class FranchiseTransactionReportDTO {
             LocalDateTime settleDate,
             String authCode,
             String tid,
-            BigDecimal merchantNetAmount,   // Can be NULL for standalone transactions
-            BigDecimal grossCharge,         // Can be NULL
-            BigDecimal franchiseCommission, // ftd.netAmount (franchise's own netAmount)
-            BigDecimal systemFee,           // Can be NULL
+            BigDecimal merchantNetAmount,
+            BigDecimal grossCharge,
+            BigDecimal franchiseCommission,
+            BigDecimal systemFee,
             BigDecimal gstRate,
             BigDecimal tdsRate,
             String brandType,
@@ -60,75 +66,120 @@ public class FranchiseTransactionReportDTO {
             String franchiseName,
             String state,
             String service
-
     ) {
+        // Basic fields - always populated
         this.txnId = txnId;
         this.customTxnId = customTxnId;
-        this.actionOnBalance= actionOnBalance;
+        this.actionOnBalance = actionOnBalance;
         this.txnDate = txnDate;
-        this.txnAmount = txnAmount;
+        this.txnAmount = txnAmount != null ? txnAmount : BigDecimal.ZERO;
         this.settleDate = settleDate;
+        this.franchiseName = franchiseName;
+        this.state = state;
+        this.service = service;
+
+        // Safe defaults
+        this.settleAmount = merchantNetAmount != null ? merchantNetAmount : BigDecimal.ZERO;
+        this.systemFee = grossCharge != null ? grossCharge : BigDecimal.ZERO;
+        this.commissionAmount = franchiseCommission != null ? franchiseCommission : BigDecimal.ZERO;
+
+        // ============== WALLET TRANSACTIONS (PAYOUT/REFUND) ==============
+        if (isWalletTransaction(service)) {
+            handleWalletTransaction();
+            return;
+        }
+
+        // ============== COMMISSION TRANSACTIONS ==============
+        handleCommissionTransaction(
+                gstRate, tdsRate, authCode, tid, merchantNetAmount,
+                grossCharge, brandType, cardType, cardClassification, merchantName
+        );
+    }
+
+    private boolean isWalletTransaction(String service) {
+        return service != null &&
+                (service.equalsIgnoreCase("PAYOUT") ||
+                        service.equalsIgnoreCase("PAYOUT_REFUND"));
+    }
+
+    private void handleWalletTransaction() {
+        // Zero out all commission/rate fields
+        this.commissionAmount = BigDecimal.ZERO;
+        this.commissionRate = null;
+        this.franchiseRate = null;
+        this.merchantRate = null;
+        this.settlementRate = null;
+        this.tdsAmount = BigDecimal.ZERO;
+        this.gstAmount = BigDecimal.ZERO;
+        this.systemFeeExGST = BigDecimal.ZERO;
+        this.netCommissionAmount = BigDecimal.ZERO;
+        this.authCode = null;
+        this.tid = null;
+        this.brandType = null;
+        this.cardType = null;
+        this.cardClassification = null;
+        this.merchantName = null;
+    }
+
+    private void handleCommissionTransaction(
+            BigDecimal gstRate, BigDecimal tdsRate, String authCode, String tid,
+            BigDecimal merchantNetAmount, BigDecimal grossCharge,
+            String brandType, String cardType, String cardClassification,
+            String merchantName) {
+
+        // Vendor/card details
         this.authCode = authCode;
         this.tid = tid;
         this.brandType = brandType;
         this.cardType = cardType;
         this.cardClassification = cardClassification;
         this.merchantName = merchantName;
-        this.franchiseName = franchiseName;
-        this.state = state;
-        this.service = service;
-
-        // Safe assignment - handle nulls
-        this.settleAmount = merchantNetAmount != null ? merchantNetAmount : BigDecimal.ZERO;
-        this.systemFee = grossCharge != null ? grossCharge : BigDecimal.ZERO;
-        this.commissionAmount = franchiseCommission != null ? franchiseCommission : BigDecimal.ZERO;
-        // ===================== FIX: PAYOUT → NO COMMISSION =====================
-        if ("PAYOUT".equalsIgnoreCase(service) || "PAYOUT_REFUND".equalsIgnoreCase(service)) {
-
-            this.commissionAmount = BigDecimal.ZERO;
-            this.commissionRate = null;
-            this.franchiseRate = null;
-            this.merchantRate = null;
-            this.settlementRate = null;
-            this.tdsAmount = BigDecimal.ZERO;
-            this.gstAmount = BigDecimal.ZERO;
-            this.systemFeeExGST = BigDecimal.ZERO;
-            this.netCommissionAmount = BigDecimal.ZERO;
-
-            return;
-        }
-        // =======================================================================
 
         // Calculate rates only if we have valid data
-        if (txnAmount != null && txnAmount.compareTo(BigDecimal.ZERO) > 0
-                && merchantNetAmount != null && franchiseCommission != null) {
+        if (txnAmount == null || txnAmount.compareTo(BigDecimal.ZERO) <= 0 ||
+                merchantNetAmount == null || commissionAmount == null) {
+            setDefaultRates();
+            return;
+        }
 
-            // This is a commission transaction (from merchant settlement)
-            this.merchantRate = txnAmount
-                    .subtract(settleAmount)
-                    .divide(txnAmount, 4, RoundingMode.HALF_UP)
-                    .multiply(BigDecimal.valueOf(100));
+        // Calculate merchant rate
+        this.merchantRate = txnAmount.subtract(settleAmount)
+                .divide(txnAmount, 4, RoundingMode.HALF_UP)
+                .multiply(BigDecimal.valueOf(100));
 
+        // Calculate commission rate
+        if (settleAmount.compareTo(BigDecimal.ZERO) > 0) {
             this.commissionRate = commissionAmount
                     .divide(settleAmount, 4, RoundingMode.HALF_UP)
                     .multiply(BigDecimal.valueOf(100));
 
             this.franchiseRate = this.merchantRate.subtract(this.commissionRate);
             this.settlementRate = this.merchantRate;
+        } else {
+            setDefaultRates();
+            return;
+        }
+
+        // Calculate taxes
+        if (tdsRate != null && commissionAmount.compareTo(BigDecimal.ZERO) > 0) {
             this.tdsAmount = commissionAmount.multiply(tdsRate)
                     .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
             this.tdsPercentage = tdsRate;
+            this.netCommissionAmount = commissionAmount.subtract(tdsAmount);
+        }
+
+        if (gstRate != null && grossCharge != null && grossCharge.compareTo(BigDecimal.ZERO) > 0) {
             this.gstAmount = grossCharge.multiply(gstRate)
                     .divide(BigDecimal.valueOf(100).add(gstRate), 2, RoundingMode.HALF_UP);
             this.systemFeeExGST = grossCharge.subtract(gstAmount);
-            this.netCommissionAmount = commissionAmount.subtract(tdsAmount);
-        } else {
-            // Standalone franchise transaction (DEBIT/CREDIT not related to merchant)
-            this.merchantRate = null;
-            this.franchiseRate = null;
-            this.commissionRate = null;
-            this.settlementRate = null;
         }
+    }
+
+    private void setDefaultRates() {
+        this.merchantRate = null;
+        this.franchiseRate = null;
+        this.commissionRate = null;
+        this.settlementRate = null;
     }
 
     public BigDecimal getSystemFeeExGST() {
