@@ -108,7 +108,7 @@ const SettlementFooter = ({
                                     Processing...
                                 </div>
                             ) : (
-                                `Start Settlement (${formatNumber(selectedCount)})`
+                                    `Start Settlement (${formatNumber(globalTotals.transactions)})`
                             )}
                         </button>
                     </div>

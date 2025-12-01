@@ -146,8 +146,12 @@ const DirectSettlementPage = () => {
         try {
             await updateBatchCandidates(selectedMerchantId, batch.batchId, selectedTxIds);
 
-            // Success - clear selections and reset
+            // ✅ COMPLETE RESET - Success path
             setSelectedTxIds([]);
+            setCycleKey('');              // ← ADD THIS
+            setProductId('');             // ← ADD THIS
+            setSelectedMerchantId('');    // ← ADD THIS (optional - depends on UX preference)
+            setProducts([]);              // ← ADD THIS
             resetBatch();
             clearCandidates();
 
@@ -156,6 +160,10 @@ const DirectSettlementPage = () => {
             });
         } catch (error) {
             // Error already handled in useBatch hook
+            // ✅ PARTIAL RESET on failure - keep merchant/filters, clear selections
+            setSelectedTxIds([]);
+            clearCandidates();
+            // Don't reset merchant/filters so user can retry
         }
     }, [batch, selectedTxIds, selectedMerchantId, updateBatchCandidates, resetBatch, clearCandidates]);
 
@@ -172,7 +180,11 @@ const DirectSettlementPage = () => {
 
         try {
             await cancelBatch(selectedMerchantId, batch.batchId);
+            // ✅ COMPLETE RESET
             setSelectedTxIds([]);
+            setCycleKey('');           // ← ADD THIS
+            setProductId('');          // ← ADD THIS
+            setProducts([]);           // ← ADD THIS
             clearCandidates();
         } catch (error) {
             // Error already handled in useBatch hook
