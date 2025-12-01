@@ -36,7 +36,7 @@ public class SecurityConfig {
                         // Public endpoints
                         .requestMatchers("/users/**").permitAll()
                         .requestMatchers("/actuator/health").permitAll() // Health check
-                        .requestMatchers("/razorpay/notification").permitAll()
+                        .requestMatchers("/razorpay/notification").hasRole("RAZORPAY")
 
                         .requestMatchers("/payment-payout/callback","/tools/encrypt/**").permitAll()
                         // Admin only endpoints

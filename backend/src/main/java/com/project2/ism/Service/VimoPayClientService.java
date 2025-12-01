@@ -285,20 +285,83 @@ public class VimoPayClientService {
         }
     }
 
-    public PayoutCallback handleEncryptedCallback(Long vendorId, Map<String, Object> encryptedBody) {
+//    public PayoutCallback handleEncryptedCallback(Long vendorId, Map<String, Object> encryptedBody) {
+//        try {
+//            String encrypted = (String) encryptedBody.get("data");
+//            if (encrypted == null) throw new RuntimeException("Missing encrypted data");
+//
+//            String decryptedJson = cryptoService.decryptFromVendor(vendorId, encrypted);
+//
+//            return objectMapper.readValue(decryptedJson, PayoutCallback.class);
+//
+//        } catch (Exception e) {
+//            log.error("Failed to decrypt vendor callback", e);
+//            throw new RuntimeException("Invalid callback payload");
+//        }
+//    }
+
+    public PayoutCallback handleEncryptedCallback(Long vendorId, Map<String, Object> body) {
+
+        String rawJson = null;
+        String encryptedBlock = null;
+        String decryptedJson = null;
+
         try {
-            String encrypted = (String) encryptedBody.get("data");
-            if (encrypted == null) throw new RuntimeException("Missing encrypted data");
+            // Case 1: encrypted callback: {"data": "<encryptedString>"}
+            if (body.containsKey("data") && body.get("data") instanceof String) {
 
-            String decryptedJson = cryptoService.decryptFromVendor(vendorId, encrypted);
+                encryptedBlock = (String) body.get("data");
+                decryptedJson = cryptoService.decryptFromVendor(vendorId, encryptedBlock);
 
-            return objectMapper.readValue(decryptedJson, PayoutCallback.class);
+                // Log encrypted + decrypted
+                saveLog(
+                        vendorId,
+                        "CALLBACK_ENCRYPTED",
+                        objectMapper.writeValueAsString(body),
+                        encryptedBlock,
+                        null,
+                        200,
+                        decryptedJson
+                );
 
-        } catch (Exception e) {
-            log.error("Failed to decrypt vendor callback", e);
-            throw new RuntimeException("Invalid callback payload");
+                return objectMapper.readValue(decryptedJson, PayoutCallback.class);
+            }
+
+            // Case 2: plain JSON callback (vendor testing / fallback)
+            rawJson = objectMapper.writeValueAsString(body);
+
+            saveLog(
+                    vendorId,
+                    "CALLBACK_PLAIN",
+                    rawJson,
+                    null,
+                    null,
+                    200,
+                    rawJson
+            );
+
+            return objectMapper.readValue(rawJson, PayoutCallback.class);
+
+        } catch (Exception ex) {
+
+            // Log failure safely
+            try {
+                rawJson = rawJson == null ? objectMapper.writeValueAsString(body) : rawJson;
+                saveLog(
+                        vendorId,
+                        "CALLBACK_ERROR",
+                        rawJson,
+                        encryptedBlock,
+                        null,
+                        500,
+                        ex.getMessage()
+                );
+            } catch (Exception ignore) {}
+
+            throw new RuntimeException("Invalid callback payload", ex);
         }
     }
+
 
     /* ------------------------ fetch & save helpers ------------------------ */
 

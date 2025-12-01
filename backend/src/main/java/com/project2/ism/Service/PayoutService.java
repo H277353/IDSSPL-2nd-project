@@ -1,11 +1,13 @@
 package com.project2.ism.Service;
 
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.project2.ism.DTO.PayoutDTO.PayoutCallback;
 import com.project2.ism.DTO.PayoutDTO.PayoutRequest;
 import com.project2.ism.DTO.PayoutDTO.PayoutResult;
 import com.project2.ism.DTO.PayoutDTO.SimplePayoutRequest;
 import com.project2.ism.Model.*;
+import com.project2.ism.Model.Payment.PaymentVendorResponseLog;
 import com.project2.ism.Model.Payout.PayoutTransaction;
 import com.project2.ism.Model.Payment.VendorBank;
 import com.project2.ism.Model.Payment.VendorState;
@@ -48,6 +50,9 @@ public class PayoutService {
     private final VendorStateRepository vendorStateRepo;
     private final VendorBankRepository vendorBankRepo;
 
+    private final PaymentVendorResponseLogRepository paymentVendorResponseLogRepository;
+    private final ObjectMapper objectMapper;
+
 
     public PayoutService(PayoutTransactionRepository payoutTxnRepo,
                          MerchantWalletRepository merchantWalletRepo,
@@ -58,7 +63,7 @@ public class PayoutService {
                          FranchiseRepository franchiseRepo,
                          VimoPayClientService vimoPayClient,
                          PaymentChargeService paymentChargeService,
-                         PayoutBankRepository payoutBanksRepo, VendorStateRepository vendorStateRepo, VendorBankRepository vendorBankRepo) {
+                         PayoutBankRepository payoutBanksRepo, VendorStateRepository vendorStateRepo, VendorBankRepository vendorBankRepo, PaymentVendorResponseLogRepository paymentVendorResponseLogRepository, ObjectMapper objectMapper) {
         this.payoutTxnRepo = payoutTxnRepo;
         this.merchantWalletRepo = merchantWalletRepo;
         this.franchiseWalletRepo = franchiseWalletRepo;
@@ -71,6 +76,8 @@ public class PayoutService {
         this.payoutBanksRepo = payoutBanksRepo;
         this.vendorStateRepo = vendorStateRepo;
         this.vendorBankRepo = vendorBankRepo;
+        this.paymentVendorResponseLogRepository = paymentVendorResponseLogRepository;
+        this.objectMapper = objectMapper;
     }
 
 
@@ -248,10 +255,19 @@ public class PayoutService {
         // Always assume current vendor is VimoPay for now
         Long vendorId = defaultPayoutVendorId;// ViMoPay - TODO: Make dynamic when multiple vendors available
 
-        // delegate real processing to vimoPayService
-        PayoutCallback callback = vimoPayClient.handleEncryptedCallback(vendorId, encryptedBody);
+        PayoutCallback callback = null;
+        try {
+            // This method in vimo client already saves logs for encrypted/plain
+            callback = vimoPayClient.handleEncryptedCallback(vendorId, encryptedBody);
 
-        // use your existing callback handler
+        } catch (Exception e) {
+            // If vimoPayClient failed to parse/decrypt, persist raw callback and return (do NOT rethrow)
+            log.error("Failed parsing/decrypting vendor callback - saving raw body. vendorId={}", vendorId, e);
+            persistUnknownCallback(vendorId, "CALLBACK_DECRYPT_ERROR", encryptedBody, null, e.getMessage());
+            return; // swallow so vendor receives 200 and we don't retry loops
+        }
+
+        // delegate to the handler that receives both parsed callback and raw body
         handleCallback(callback);
     }
 
@@ -450,9 +466,16 @@ public class PayoutService {
         payoutTxn.setResponseMessage(callback.getResponseMessage());
 
         if ("000".equals(callback.getTxnStatusCode()) || "Success".equalsIgnoreCase(callback.getTxnStatus())) {
+
+
             payoutTxn.setStatus(PayoutTransaction.PayoutStatus.SUCCESS);
             payoutTxn.setCompletedAt(LocalDateTime.now());
         } else if ("001".equals(callback.getTxnStatusCode()) || "Failed".equalsIgnoreCase(callback.getTxnStatus())) {
+            // If already failed, DO NOT REFUND AGAIN
+            if (payoutTxn.getStatus() == PayoutTransaction.PayoutStatus.FAILED) {
+                log.warn("Duplicate FAILED callback ignored for ref={}", payoutTxn.getMerchantRefId());
+                return; // STOP here
+            }
             payoutTxn.setStatus(PayoutTransaction.PayoutStatus.FAILED);
             payoutTxn.setCompletedAt(LocalDateTime.now());
 
@@ -606,7 +629,7 @@ public class PayoutService {
         refundEntry.setTranStatus("SUCCESS");
         refundEntry.setTransactionType("CREDIT");
         refundEntry.setService("PAYOUT_REFUND");
-        refundEntry.setVendorTransactionId(payoutTxn.getMerchantRefId());
+        refundEntry.setVendorTransactionId(payoutTxn.getVendorTxnId());
         refundEntry.setRemarks("Refund for failed payout - " + payoutTxn.getResponseMessage());
         merchantTxnRepo.save(refundEntry);
 
@@ -637,12 +660,44 @@ public class PayoutService {
         refundEntry.setTranStatus("SUCCESS");
         refundEntry.setTransactionType("CREDIT");
         refundEntry.setService("PAYOUT_REFUND");
-        refundEntry.setVendorTransactionId(payoutTxn.getMerchantRefId());
+        refundEntry.setVendorTransactionId(payoutTxn.getVendorTxnId());
         refundEntry.setRemarks("Refund for failed payout - " + payoutTxn.getResponseMessage());
         franchiseTxnRepo.save(refundEntry);
 
         log.debug("Refunded franchise {} wallet: amount={}", payoutTxn.getInitiatorId(), payoutTxn.getTotalDeducted());
     }
+
+    // =======
+    private void persistUnknownCallback(Long vendorId, String apiName, Map<String, Object> rawBody, PayoutCallback callback, String note) {
+        try {
+            PaymentVendorResponseLog logEntry = new PaymentVendorResponseLog();
+            logEntry.setVendorId(vendorId);
+            logEntry.setApiName(apiName);
+            // raw request JSON
+            logEntry.setRequestPayload(objectMapper.writeValueAsString(rawBody));
+            // encryptedRequest not applicable (we already have only raw body)
+            logEntry.setEncryptedRequest(null);
+            logEntry.setEncryptedResponse(null);
+            // store the parsed/decrypted callback (useful for investigations)
+            logEntry.setDecryptedResponse(callback != null ? objectMapper.writeValueAsString(callback) : null);
+
+            // statusCode: store 0 or a custom code; we will use 422 for unprocessable/unmatched
+            logEntry.setStatusCode(422);
+
+            // add a short note in responseMessage? your model doesn't have that — so we rely on decryptedResponse.
+            logEntry.setCreatedOn(LocalDateTime.now());
+
+            paymentVendorResponseLogRepository.save(logEntry);
+
+            log.warn("Persisted unmatched vendor callback (apiName={} vendorId={}): merchantRef={} note={}",
+                    apiName, vendorId, callback != null ? callback.getMerchantRefId() : "<null>", note);
+
+        } catch (Exception e) {
+            log.error("Failed to persist unknown callback for vendor={}, merchantRef={}: {}",
+                    vendorId, callback != null ? callback.getMerchantRefId() : "<null>", e.getMessage(), e);
+        }
+    }
+
 
     // ==================== UTILITY METHODS ====================
 

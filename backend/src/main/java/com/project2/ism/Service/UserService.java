@@ -53,7 +53,9 @@ public class UserService {
         }
 
         // ✅ Check if password has expired
-        if (user.isPasswordExpired()) {
+        // Skip password-expiry check for RAZORPAY user
+        if (!"RAZORPAY".equalsIgnoreCase(user.getRole())
+                && user.isPasswordExpired()) {
             return new LoginResult(LoginStatus.PASSWORD_EXPIRED, user);
         }
 
@@ -95,6 +97,30 @@ public class UserService {
         User savedUser = userRepository.save(user);
         return Optional.of(savedUser);
     }
+
+    @Transactional
+    public User createSystemUser(String email, String rawPassword, String role) {
+
+        // Check if user already exists
+        Optional<User> existing = userRepository.findByEmail(email);
+        if (existing.isPresent()) {
+            throw new RuntimeException("User with email already exists");
+        }
+
+        User user = new User();
+        user.setEmail(email);
+        user.setRole(role);
+        user.setPassword(passwordEncoder.encode(rawPassword));
+
+
+        // System users never expire
+        user.setFirstLogin(false);
+        user.setPasswordExpiryDate(null);
+        user.setPasswordLastChangedAt(LocalDateTime.now());
+
+        return userRepository.save(user);
+    }
+
 
     @Transactional
     public void createAndSendCredentials(String email, String role, String plainPassword) {
