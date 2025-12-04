@@ -1,20 +1,65 @@
 import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { X } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import api from "../../constants/API/axiosInstance"
 import { toast } from 'react-toastify'
 
-// ==================== FORM COMPONENTS ====================
+// ==================== ZOD SCHEMA ====================
+const productAssignmentSchema = z.object({
+    customerType: z.enum(['FRANCHISE', 'MERCHANT'], {
+        required_error: "Customer type is required",
+        invalid_type_error: "Please select a valid customer type"
+    }),
+    customerId: z.string()
+        .min(1, "Customer is required")
+        .regex(/^\d+$/, "Customer ID must be a valid number"),
+    productId: z.string()
+        .min(1, "Product is required")
+        .regex(/^\d+$/, "Product ID must be a valid number"),
+    schemeId: z.string()
+        .min(1, "Pricing scheme is required")
+        .regex(/^\d+$/, "Scheme ID must be a valid number"),
+    effectiveDate: z.string()
+        .min(1, "Effective date is required")
+        .refine((date) => {
+            const selectedDate = new Date(date)
+            const today = new Date()
+            today.setHours(0, 0, 0, 0)
+            return selectedDate >= today
+        }, "Effective date cannot be in the past"),
+    expiryDate: z.string()
+        .optional()
+        .refine((date) => {
+            if (!date) return true
+            const expiryDate = new Date(date)
+            return !isNaN(expiryDate.getTime())
+        }, "Invalid expiry date format"),
+    remarks: z.string()
+        .max(500, "Remarks cannot exceed 500 characters")
+        .optional()
+}).refine((data) => {
+    // Cross-field validation: expiry date must be after effective date
+    if (data.expiryDate && data.effectiveDate) {
+        const effective = new Date(data.effectiveDate)
+        const expiry = new Date(data.expiryDate)
+        return expiry > effective
+    }
+    return true
+}, {
+    message: "Expiry date must be after effective date",
+    path: ["expiryDate"]
+})
 
+// ==================== FORM COMPONENTS ====================
 const Input = ({ label, name, register, errors, required = false, type = "text", ...props }) => (
     <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
             {label} {required && <span className="text-red-500">*</span>}
         </label>
         <input
-            {...register(name, {
-                required: required ? `${label} is required` : false,
-            })}
+            {...register(name)}
             type={type}
             className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors[name] ? 'border-red-500' : 'border-gray-300'
                 }`}
@@ -32,7 +77,7 @@ const Select = ({ label, name, register, errors, options, required = false, ...p
             {label} {required && <span className="text-red-500">*</span>}
         </label>
         <select
-            {...register(name, { required: required ? `${label} is required` : false })}
+            {...register(name)}
             className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors[name] ? 'border-red-500' : 'border-gray-300'
                 }`}
             {...props}
@@ -50,22 +95,20 @@ const Select = ({ label, name, register, errors, options, required = false, ...p
     </div>
 )
 
-// ==================== UPDATED PRODUCT ASSIGNMENT FORM MODAL ====================
+// ==================== PRODUCT ASSIGNMENT FORM MODAL ====================
 const ProductAssignmentFormModal = ({ onCancel, onSubmit, initialData = null, isEdit = false }) => {
     const [franchises, setFranchises] = useState([])
     const [merchants, setMerchants] = useState([])
     const [franchiseProducts, setFranchiseProducts] = useState([])
     const [merchantProducts, setMerchantProducts] = useState([])
     const [pricingSchemes, setPricingSchemes] = useState([])
-    const [globalWarning, setGlobalWarning] = useState(null)  // NEW: Store global warning
-    const [selectedSchemeWarning, setSelectedSchemeWarning] = useState(null)  // NEW: Store selected scheme warning
+    const [globalWarning, setGlobalWarning] = useState(null)
+    const [selectedSchemeWarning, setSelectedSchemeWarning] = useState(null)
     const [loading, setLoading] = useState(false)
     const [dataInitialized, setDataInitialized] = useState(false)
-    // Add loading states for each data fetch
     const [loadingCustomers, setLoadingCustomers] = useState(false)
     const [loadingProducts, setLoadingProducts] = useState(false)
     const [loadingSchemes, setLoadingSchemes] = useState(false)
-
 
     const getDefaultValues = () => ({
         customerType: '',
@@ -85,7 +128,9 @@ const ProductAssignmentFormModal = ({ onCancel, onSubmit, initialData = null, is
         reset,
         setValue
     } = useForm({
-        defaultValues: initialData ? initialData: getDefaultValues()
+        resolver: zodResolver(productAssignmentSchema),
+        defaultValues: initialData ? initialData : getDefaultValues(),
+        mode: 'onChange' // Validate on change for better UX
     })
 
     const watchedFields = watch(['customerType', 'customerId', 'productId', 'schemeId'])
@@ -127,6 +172,7 @@ const ProductAssignmentFormModal = ({ onCancel, onSubmit, initialData = null, is
                 }
             } catch (error) {
                 console.error(`Error fetching ${watchedFields[0].toLowerCase()}s:`, error)
+                toast.error(`Failed to fetch ${watchedFields[0].toLowerCase()}s`)
                 if (watchedFields[0] === 'FRANCHISE') {
                     setFranchises([])
                 } else {
@@ -152,6 +198,7 @@ const ProductAssignmentFormModal = ({ onCancel, onSubmit, initialData = null, is
                     setFranchiseProducts(response.data)
                 } catch (error) {
                     console.error('Error fetching franchise products:', error)
+                    toast.error('Failed to fetch franchise products')
                     setFranchiseProducts([])
                 } finally {
                     setLoadingProducts(false)
@@ -176,6 +223,7 @@ const ProductAssignmentFormModal = ({ onCancel, onSubmit, initialData = null, is
                     setMerchantProducts(response.data)
                 } catch (error) {
                     console.error('Error fetching merchant products:', error)
+                    toast.error('Failed to fetch merchant products')
                     setMerchantProducts([])
                 } finally {
                     setLoadingProducts(false)
@@ -206,17 +254,14 @@ const ProductAssignmentFormModal = ({ onCancel, onSubmit, initialData = null, is
                             `/pricing-schemes/valid-pricing-scheme?productId=${selectedProduct.productId}&productCategory=${selectedProduct.productCategory}&customerType=${customerType}`
                         )
 
-                        // NEW: Handle the new response structure
                         const { schemes, globalWarning: warning } = response.data
                         setPricingSchemes(schemes || [])
                         setGlobalWarning(warning)
-
-                        // Clear selected scheme warning when schemes list changes
                         setSelectedSchemeWarning(null)
                     }
                 } catch (error) {
                     console.error('Error fetching pricing schemes:', error)
-                    toast.error(error?.response?.data?.message || 'Failed to fetch pricing schemes. Please try again.')
+                    toast.error(error?.response?.data?.message || 'Failed to fetch pricing schemes')
                     setPricingSchemes([])
                     setGlobalWarning(null)
                 } finally {
@@ -234,7 +279,7 @@ const ProductAssignmentFormModal = ({ onCancel, onSubmit, initialData = null, is
         }
     }, [watchedFields[2], watchedFields[0], franchiseProducts, merchantProducts, dataInitialized])
 
-    // NEW: Update selected scheme warning when scheme selection changes
+    // Update selected scheme warning when scheme selection changes
     useEffect(() => {
         if (watchedFields[3] && pricingSchemes.length > 0) {
             const selectedScheme = pricingSchemes.find(s => s.schemeCode === watchedFields[3])
@@ -282,7 +327,6 @@ const ProductAssignmentFormModal = ({ onCancel, onSubmit, initialData = null, is
         { value: 'MERCHANT', label: 'Merchant' }
     ]
 
-    
     const getCustomerOptions = () => {
         if (watchedFields[0] === 'FRANCHISE') {
             return franchises.map(franchise => ({
@@ -330,12 +374,12 @@ const ProductAssignmentFormModal = ({ onCancel, onSubmit, initialData = null, is
             let response
             if (isEdit && initialData?.id) {
                 response = await api.put(`/outward-schemes/${initialData.id}`, assignmentData)
-                toast.success("Scheme Assign Successfully Updated")
+                toast.success("Scheme Assignment Successfully Updated")
             } else {
                 response = await api.post('/outward-schemes', assignmentData)
                 toast.success("Scheme Assigned Successfully")
             }
-            
+
             onSubmit(response.data)
             onCancel()
         } catch (error) {
@@ -394,7 +438,7 @@ const ProductAssignmentFormModal = ({ onCancel, onSubmit, initialData = null, is
                 </div>
 
                 {/* Modal Body */}
-                <div className="p-6">
+                <form onSubmit={handleSubmit(onFormSubmit)} className="p-6">
                     <div className="space-y-6">
                         {/* Assignment Details */}
                         <div className="bg-gray-50 p-4 rounded-lg">
@@ -462,13 +506,17 @@ const ProductAssignmentFormModal = ({ onCancel, onSubmit, initialData = null, is
                                 <textarea
                                     {...register('remarks')}
                                     rows="3"
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.remarks ? 'border-red-500' : 'border-gray-300'
+                                        }`}
                                     placeholder="Enter any additional remarks about the assignment"
                                 />
+                                {errors.remarks && (
+                                    <p className="mt-1 text-sm text-red-500">{errors.remarks.message}</p>
+                                )}
                             </div>
                         </div>
 
-                        {/* NEW: Global Warning Banner - Shows if no vendor rates exist */}
+                        {/* Global Warning Banner */}
                         {globalWarning && (
                             <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-md">
                                 <div className="flex">
@@ -489,7 +537,7 @@ const ProductAssignmentFormModal = ({ onCancel, onSubmit, initialData = null, is
                             </div>
                         )}
 
-                        {/* NEW: Selected Scheme Warning - Shows if selected scheme rates are below vendor rates */}
+                        {/* Selected Scheme Warning */}
                         {selectedSchemeWarning && (
                             <div className="bg-orange-50 border-l-4 border-orange-400 p-4 rounded-md">
                                 <div className="flex">
@@ -524,8 +572,7 @@ const ProductAssignmentFormModal = ({ onCancel, onSubmit, initialData = null, is
                                 Cancel
                             </button>
                             <button
-                                type="button"
-                                onClick={handleSubmit(onFormSubmit)}
+                                type="submit"
                                 className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors disabled:opacity-50"
                                 disabled={loading}
                             >
@@ -533,7 +580,7 @@ const ProductAssignmentFormModal = ({ onCancel, onSubmit, initialData = null, is
                             </button>
                         </div>
                     </div>
-                </div>
+                </form>
             </div>
         </div>
     )
