@@ -5,7 +5,7 @@ import { toast } from 'react-toastify';
 import { Button, FormInput } from '../Forms/Common/common';
 import api from '../../constants/API/axiosInstance';
 import { Eye, EyeOff, KeyRound, AlertTriangle } from 'lucide-react';
-import logoImage from '../../assets/SD.jpg';
+import logoImage from '../../assets/SD.png';
 
 const ResetPasswordExpired = () => {
     const navigate = useNavigate();

@@ -2,10 +2,14 @@ import api from "./axiosInstance";
 
 const ENDPOINT = "/outward-transactions";
 
-export const getAllOutwardTransactions = async () => {
-  const res = await api.get(ENDPOINT);
-  return res.data;
+export const getAllOutwardTransactions = async (page = 0, size = 10, sortBy = "id", sortDir = "desc") => {
+  const res = await api.get(ENDPOINT, {
+    params: { page, size, sortBy, sortDir }
+  });
+  return res.data; // Returns { content: [], totalElements, totalPages, number, size, ... }
 };
+
+
 
 export const getOutwardTransactionById = async (id) => {
   const res = await api.get(`${ENDPOINT}/${id}`);
