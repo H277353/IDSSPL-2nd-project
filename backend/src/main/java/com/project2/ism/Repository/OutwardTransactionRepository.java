@@ -2,16 +2,20 @@ package com.project2.ism.Repository;
 
 import com.project2.ism.Model.InventoryTransactions.OutwardTransactions;
 import org.hibernate.usertype.LoggableUserType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Repository
 public interface OutwardTransactionRepository extends JpaRepository<OutwardTransactions, Long> {
@@ -54,4 +58,23 @@ public interface OutwardTransactionRepository extends JpaRepository<OutwardTrans
     List<OutwardTransactions> findByMerchantIdAndProductId(Long merchantId, Long productId);
 
     List<OutwardTransactions> findByFranchiseIdAndProductId(Long merchantId, Long productId);
+
+    Page<OutwardTransactions> findByDispatchDateAfter(
+            LocalDateTime startDate, Pageable pageable);
+
+    Page<OutwardTransactions> findByDispatchDateBefore(
+            LocalDateTime endDate, Pageable pageable);
+
+    Page<OutwardTransactions> findByDispatchDateBetween(
+            LocalDateTime startDate, LocalDateTime endDate, Pageable pageable);
+
+    // Add streaming methods for export
+    @Query("SELECT o FROM OutwardTransactions o LEFT JOIN FETCH o.productSerialNumbers")
+    Stream<OutwardTransactions> streamAllBy();
+
+    @Query("SELECT o FROM OutwardTransactions o LEFT JOIN FETCH o.productSerialNumbers " +
+            "WHERE o.dispatchDate BETWEEN :startDate AND :endDate")
+    Stream<OutwardTransactions> streamByDispatchDateBetween(
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate);
 }

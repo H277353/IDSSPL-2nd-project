@@ -1,10 +1,9 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
     useReactTable,
     getCoreRowModel,
     getSortedRowModel,
     getFilteredRowModel,
-    getPaginationRowModel,
     flexRender,
 } from '@tanstack/react-table'
 import {
@@ -15,7 +14,6 @@ import {
     ChevronsLeft,
     ChevronsRight,
     Eye,
-    Edit,
     Trash2,
     Package,
     TruckIcon,
@@ -23,15 +21,53 @@ import {
     Calendar,
 } from 'lucide-react'
 import ViewOutwardEntry from '../View/ViewOutwardEntry'
+import { getAllOutwardTransactions } from '../../constants/API/OutwardTransAPI'
+import { toast } from 'react-toastify'
 
-const OutwardTable = ({ data, onEdit, onView, onDelete }) => {
+const OutwardTable = ({ onEdit, onDelete, refreshTrigger }) => {
     const [globalFilter, setGlobalFilter] = useState('')
     const [sorting, setSorting] = useState([])
     const [viewData, setViewData] = useState(null)
     const [isViewOpen, setIsViewOpen] = useState(false)
 
-    // Calculate stats
-    const totalDeliveries = data?.length || 0
+    // Pagination state
+    const [data, setData] = useState([])
+    const [loading, setLoading] = useState(false)
+    const [pageIndex, setPageIndex] = useState(0)
+    const [pageSize, setPageSize] = useState(10)
+    const [totalElements, setTotalElements] = useState(0)
+    const [totalPages, setTotalPages] = useState(0)
+
+    // Fetch data function
+    const fetchData = async () => {
+        setLoading(true)
+        try {
+            const sortParam = sorting.length > 0
+                ? [sorting[0].id, sorting[0].desc ? "desc" : "asc"]
+                : ["id", "desc"]
+
+            const response = await getAllOutwardTransactions(pageIndex, pageSize, sortParam)
+
+            setData(response.content || [])
+            setTotalElements(response.totalElements || 0)
+            setTotalPages(response.totalPages || 0)
+        } catch (error) {
+            console.error("Error fetching outward data:", error)
+            const backendMessage = error.response?.data?.message || error.message || "Error fetching data"
+            toast.error(backendMessage)
+            setData([])
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    // Fetch data on mount and when dependencies change
+    useEffect(() => {
+        fetchData()
+    }, [pageIndex, pageSize, sorting, refreshTrigger])
+
+    // Calculate stats from current page data
+    const totalDeliveries = totalElements
     const totalQuantity = data?.reduce((acc, item) => acc + (item.quantity || 0), 0) || 0
     const totalFranchises = data?.filter(item => item.franchiseId).length || 0
     const totalMerchants = data?.filter(item => item.merchantId).length || 0
@@ -78,7 +114,6 @@ const OutwardTable = ({ data, onEdit, onView, onDelete }) => {
             accessorKey: 'productName',
             header: 'Product Name',
         },
-       
         {
             accessorKey: 'quantity',
             header: ({ column }) => (
@@ -126,7 +161,6 @@ const OutwardTable = ({ data, onEdit, onView, onDelete }) => {
                 );
             },
         },
-        
         {
             id: 'actions',
             header: 'Actions',
@@ -140,7 +174,7 @@ const OutwardTable = ({ data, onEdit, onView, onDelete }) => {
                         <Eye className="h-4 w-4" />
                     </button>
                     <button
-                        onClick={() => onDelete?.(row.original.id)}
+                        onClick={() => handleDelete(row.original.id)}
                         className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
                         title="Delete Entry"
                     >
@@ -149,7 +183,7 @@ const OutwardTable = ({ data, onEdit, onView, onDelete }) => {
                 </div>
             ),
         },
-    ], [onEdit, onView, onDelete])
+    ], [])
 
     const table = useReactTable({
         data,
@@ -157,10 +191,15 @@ const OutwardTable = ({ data, onEdit, onView, onDelete }) => {
         getCoreRowModel: getCoreRowModel(),
         getSortedRowModel: getSortedRowModel(),
         getFilteredRowModel: getFilteredRowModel(),
-        getPaginationRowModel: getPaginationRowModel(),
+        manualPagination: true,
+        pageCount: totalPages,
         state: {
             sorting,
             globalFilter,
+            pagination: {
+                pageIndex,
+                pageSize,
+            },
         },
         onSortingChange: setSorting,
         onGlobalFilterChange: setGlobalFilter,
@@ -176,7 +215,38 @@ const OutwardTable = ({ data, onEdit, onView, onDelete }) => {
         setIsViewOpen(false)
     }
 
-    if (!data || data.length === 0) {
+    const handleDelete = async (id) => {
+        if (window.confirm("Are you sure you want to delete this outward transaction?")) {
+            await onDelete(id)
+            // Refresh data after delete
+            fetchData()
+        }
+    }
+
+    const handlePageChange = (newPageIndex) => {
+        setPageIndex(newPageIndex)
+    }
+
+    const handlePageSizeChange = (newPageSize) => {
+        setPageSize(newPageSize)
+        setPageIndex(0) // Reset to first page
+    }
+
+    if (loading && data.length === 0) {
+        return (
+            <div className="min-h-screen bg-gray-50 pr-4">
+                <div className="max-w-7xl mx-auto">
+                    <div className="bg-white rounded-lg shadow-lg">
+                        <div className="p-6 text-center">
+                            <p className="text-gray-500">Loading...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )
+    }
+
+    if (!loading && data.length === 0) {
         return (
             <div className="min-h-screen bg-gray-50 pr-4">
                 <div className="max-w-7xl mx-auto">
@@ -212,7 +282,7 @@ const OutwardTable = ({ data, onEdit, onView, onDelete }) => {
                                 <Package className="h-6 w-6 text-green-600" />
                             </div>
                             <div className="ml-4">
-                                <p className="text-sm font-medium text-gray-600">Total Quantity</p>
+                                <p className="text-sm font-medium text-gray-600">Page Quantity</p>
                                 <p className="text-2xl font-bold text-gray-900">{totalQuantity}</p>
                             </div>
                         </div>
@@ -223,7 +293,7 @@ const OutwardTable = ({ data, onEdit, onView, onDelete }) => {
                                 <Users className="h-6 w-6 text-purple-600" />
                             </div>
                             <div className="ml-4">
-                                <p className="text-sm font-medium text-gray-600">Total Customers</p>
+                                <p className="text-sm font-medium text-gray-600">Page Customers</p>
                                 <p className="text-2xl font-bold text-gray-900">
                                     {totalFranchises + totalMerchants}
                                 </p>
@@ -300,17 +370,19 @@ const OutwardTable = ({ data, onEdit, onView, onDelete }) => {
                         <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-2">
                                 <span className="text-sm text-gray-700">
-                                    Page {table.getState().pagination.pageIndex + 1} of{' '}
-                                    {table.getPageCount()}
+                                    Page {pageIndex + 1} of {totalPages || 1}
+                                </span>
+                                <span className="text-sm text-gray-500">
+                                    ({totalElements} total entries)
                                 </span>
                                 <select
-                                    value={table.getState().pagination.pageSize}
-                                    onChange={(e) => table.setPageSize(Number(e.target.value))}
+                                    value={pageSize}
+                                    onChange={(e) => handlePageSizeChange(Number(e.target.value))}
                                     className="border border-gray-300 rounded-lg px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                 >
-                                    {[10, 20, 30, 40, 50].map(pageSize => (
-                                        <option key={pageSize} value={pageSize}>
-                                            Show {pageSize}
+                                    {[10, 20, 30, 40, 50].map(size => (
+                                        <option key={size} value={size}>
+                                            Show {size}
                                         </option>
                                     ))}
                                 </select>
@@ -318,32 +390,32 @@ const OutwardTable = ({ data, onEdit, onView, onDelete }) => {
 
                             <div className="flex items-center space-x-2">
                                 <button
-                                    onClick={() => table.setPageIndex(0)}
-                                    disabled={!table.getCanPreviousPage()}
+                                    onClick={() => handlePageChange(0)}
+                                    disabled={pageIndex === 0}
                                     className="p-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
                                 >
                                     <ChevronsLeft className="h-4 w-4" />
                                 </button>
                                 <button
-                                    onClick={() => table.previousPage()}
-                                    disabled={!table.getCanPreviousPage()}
+                                    onClick={() => handlePageChange(pageIndex - 1)}
+                                    disabled={pageIndex === 0}
                                     className="p-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
                                 >
                                     <ChevronLeft className="h-4 w-4" />
                                 </button>
                                 <span className="text-sm text-gray-700">
-                                    Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount() || 1}
+                                    Page {pageIndex + 1} of {totalPages || 1}
                                 </span>
                                 <button
-                                    onClick={() => table.nextPage()}
-                                    disabled={!table.getCanNextPage()}
+                                    onClick={() => handlePageChange(pageIndex + 1)}
+                                    disabled={pageIndex >= totalPages - 1}
                                     className="p-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
                                 >
                                     <ChevronRight className="h-4 w-4" />
                                 </button>
                                 <button
-                                    onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-                                    disabled={!table.getCanNextPage()}
+                                    onClick={() => handlePageChange(totalPages - 1)}
+                                    disabled={pageIndex >= totalPages - 1}
                                     className="p-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
                                 >
                                     <ChevronsRight className="h-4 w-4" />
