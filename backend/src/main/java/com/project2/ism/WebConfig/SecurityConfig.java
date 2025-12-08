@@ -67,6 +67,7 @@ public class SecurityConfig {
         config.setAllowedOrigins(List.of(
                 "http://localhost:5173",
                 "http://localhost:5175",
+                "http://localhost:4173",
                 "http://103.93.97.204:5173"
                 // Add production origins here
         ));
