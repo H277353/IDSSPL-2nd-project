@@ -35,17 +35,17 @@ public class OutwardTransactionController {
         this.service = service;
     }
 
-//    @GetMapping
-//    public ResponseEntity<List<OutwardTransactionDTO>> getAll() {
-//        List<OutwardTransactions> entities = service.getAll();
-//        List<OutwardTransactionDTO> dtoList = entities.stream()
-//                .map(OutwardTransactionDTO::fromEntity)
-//                .collect(Collectors.toList());
-//        return ResponseEntity.ok(dtoList);
-//    }
-
-
     @GetMapping
+    public ResponseEntity<List<OutwardTransactionDTO>> getAll() {
+        List<OutwardTransactions> entities = service.getAll();
+        List<OutwardTransactionDTO> dtoList = entities.stream()
+                .map(OutwardTransactionDTO::fromEntity)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(dtoList);
+    }
+
+
+    @GetMapping("/ad")
     public ResponseEntity<Page<OutwardTransactionDTO>> getAll(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
