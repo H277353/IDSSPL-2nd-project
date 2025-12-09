@@ -4,27 +4,26 @@ import {
     getCoreRowModel,
     getFilteredRowModel,
     getSortedRowModel,
-    getPaginationRowModel,
     flexRender,
 } from '@tanstack/react-table';
 import {
     ChevronUp,
     ChevronDown,
     Search,
-    Calendar,
     Package,
     TrendingUp,
     Truck,
     Users,
     X,
-    Download
+    Download,
+    Loader2
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { getAllOutwardTransactions } from '../../constants/API/OutwardTransAPI';
 import api from '../../constants/API/axiosInstance';
 
 const OutwardTransactionReport = () => {
-    const [data, setData] = useState([]);
+    const [rawData, setRawData] = useState([]);
+    const [expandedData, setExpandedData] = useState([]);
     const [loading, setLoading] = useState(false);
     const [exportingFull, setExportingFull] = useState(false);
     const [error, setError] = useState(null);
@@ -34,27 +33,71 @@ const OutwardTransactionReport = () => {
         endDate: ''
     });
 
-    // Pagination state
+    // Backend pagination state
     const [pageIndex, setPageIndex] = useState(0);
     const [pageSize, setPageSize] = useState(10);
     const [totalElements, setTotalElements] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
 
-    // Fetch paginated data for display
+    // Summary stats (fetched separately or calculated)
+    const [summaryStats, setSummaryStats] = useState({
+        totalTransactions: 0,
+        totalQuantity: 0,
+        totalSerialNumbers: 0,
+        totalFranchises: 0,
+        totalMerchants: 0
+    });
+
+    // Transform backend data to expand serial numbers into separate rows
+    const transformDataWithSerials = (transactions) => {
+        const transformed = [];
+        transactions.forEach(transaction => {
+            if (transaction.serialNumbers && transaction.serialNumbers.length > 0) {
+                // Create one row per serial number
+                transaction.serialNumbers.forEach(serial => {
+                    transformed.push({
+                        ...transaction,
+                        transactionId: transaction.id,
+                        id: `${transaction.id}-${serial.id}`,
+                        serialId: serial.id,
+                        sid: serial.sid,
+                        mid: serial.mid,
+                        tid: serial.tid,
+                        vpaid: serial.vpaid || '-',
+                        mobNumber: serial.mobNumber || '-'
+                    });
+                });
+            } else {
+                // Transaction without serial numbers
+                transformed.push({
+                    ...transaction,
+                    transactionId: transaction.id,
+                    id: `${transaction.id}-no-serial`,
+                    serialId: null,
+                    sid: "-",
+                    mid: "-",
+                    tid: "-",
+                    vpaid: "-",
+                    mobNumber: "-"
+                });
+            }
+        });
+        return transformed;
+    };
+
+    // Fetch paginated data
     const fetchTransactions = async (page = 0) => {
         setLoading(true);
         setError(null);
 
         try {
             const sortParam = ["id", "desc"];
-
             const params = {
                 page,
                 size: pageSize,
                 sort: sortParam
             };
 
-            // Add date filters only if selected
             if (dateRange.startDate) {
                 params.startDate = `${dateRange.startDate}T00:00:00`;
             }
@@ -62,50 +105,46 @@ const OutwardTransactionReport = () => {
                 params.endDate = `${dateRange.endDate}T23:59:59`;
             }
 
-            const response = await api.get("/outward-transactions", { params });
+            const response = await api.get("/outward-transactions/ad", { params });
 
-            // Transform data for serials same as before...
-            const transformedData = [];
-            (response.data.content || []).forEach(transaction => {
-                if (transaction.serialNumbers && transaction.serialNumbers.length > 0) {
-                    transaction.serialNumbers.forEach(serial => {
-                        transformedData.push({
-                            ...transaction,
-                            id: `${transaction.id}`,
-                            serialId: serial.id,
-                            sid: serial.sid,
-                            mid: serial.mid,
-                            tid: serial.tid,
-                            vpaid: serial.vpaid
-                        });
-                    });
-                } else {
-                    transformedData.push({
-                        ...transaction,
-                        id: transaction.id,
-                        serialId: null,
-                        sid: "-",
-                        mid: "-",
-                        tid: "-",
-                        vpaid: "-"
-                    });
-                }
-            });
+            setRawData(response.data.content || []);
+            const transformed = transformDataWithSerials(response.data.content || []);
+            setExpandedData(transformed);
 
-            setData(transformedData);
             setTotalElements(response.data.totalElements);
             setTotalPages(response.data.totalPages);
             setPageIndex(page);
+
+            // Calculate summary stats from current page
+            const currentPageStats = calculatePageStats(transformed, response.data.totalElements);
+            setSummaryStats(currentPageStats);
+
         } catch (error) {
             console.error("Error fetching outward transactions:", error);
             setError("Failed to fetch outward transactions. Please try again.");
+            setExpandedData([]);
         } finally {
             setLoading(false);
         }
     };
 
+    // Calculate stats from current page data
+    const calculatePageStats = (transformedData, backendTotal) => {
+        const totalSerials = transformedData.filter(item => item.serialId).length;
+        const uniqueFranchises = [...new Set(rawData.filter(item => item.franchiseName).map(item => item.franchiseName))];
+        const uniqueMerchants = [...new Set(rawData.filter(item => item.merchantName).map(item => item.merchantName))];
+        const totalQuantity = rawData.reduce((sum, item) => sum + (item.quantity || 0), 0);
 
-    // Export full report to Excel (backend streams all data)
+        return {
+            totalTransactions: backendTotal,
+            totalSerialNumbers: totalSerials,
+            totalFranchises: uniqueFranchises.length,
+            totalMerchants: uniqueMerchants.length,
+            totalQuantity: totalQuantity
+        };
+    };
+
+    // Export full report
     const exportFullReport = async () => {
         setExportingFull(true);
         try {
@@ -148,18 +187,35 @@ const OutwardTransactionReport = () => {
         fetchTransactions(0);
     }, []);
 
-    // Filter data based on date range (client-side filtering)
-    const filteredData = data
+    // Client-side filtering on expanded data
+    const filteredData = useMemo(() => {
+        if (!globalFilter) return expandedData;
+
+        const searchLower = globalFilter.toLowerCase();
+        return expandedData.filter(item => {
+            const customerName = item.franchiseName || item.merchantName || '';
+            return (
+                item.deliveryNumber?.toLowerCase().includes(searchLower) ||
+                customerName.toLowerCase().includes(searchLower) ||
+                item.productName?.toLowerCase().includes(searchLower) ||
+                item.productCode?.toLowerCase().includes(searchLower) ||
+                item.sid?.toLowerCase().includes(searchLower) ||
+                item.mid?.toLowerCase().includes(searchLower) ||
+                item.tid?.toLowerCase().includes(searchLower)
+            );
+        });
+    }, [expandedData, globalFilter]);
 
     const clearFilters = () => {
         setGlobalFilter('');
         setDateRange({ startDate: '', endDate: '' });
+        fetchTransactions(0);
     };
 
     const columns = useMemo(() => [
         {
             header: 'Transaction ID',
-            accessorKey: 'id',
+            accessorKey: 'transactionId',
             cell: ({ getValue }) => (
                 <span className="font-mono text-sm">{getValue()}</span>
             )
@@ -243,13 +299,18 @@ const OutwardTransactionReport = () => {
             cell: ({ getValue }) => {
                 const method = getValue();
                 const colorMap = {
-                    'Courier': 'bg-blue-100 text-blue-800',
-                    'Self Pickup': 'bg-green-100 text-green-800',
-                    'Direct Delivery': 'bg-purple-100 text-purple-800'
+                    'courier': 'bg-blue-100 text-blue-800',
+                    'self_pickup': 'bg-green-100 text-green-800',
+                    'direct_delivery': 'bg-purple-100 text-purple-800'
+                };
+                const labelMap = {
+                    'courier': 'Courier',
+                    'self_pickup': 'Self Pickup',
+                    'direct_delivery': 'Direct Delivery'
                 };
                 return (
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${colorMap[method] || 'bg-gray-100 text-gray-800'}`}>
-                        {method || '-'}
+                        {labelMap[method] || method || '-'}
                     </span>
                 );
             }
@@ -316,7 +377,7 @@ const OutwardTransactionReport = () => {
             cell: ({ getValue }) => {
                 const address = getValue();
                 return address ? (
-                    <span className="text-xs text-gray-600 max-w-xs truncate" title={address}>
+                    <span className="text-xs text-gray-600 max-w-xs truncate block" title={address}>
                         {address}
                     </span>
                 ) : '-';
@@ -328,7 +389,7 @@ const OutwardTransactionReport = () => {
             cell: ({ getValue }) => {
                 const remark = getValue();
                 return remark ? (
-                    <span className="text-xs text-gray-600 max-w-xs truncate" title={remark}>
+                    <span className="text-xs text-gray-600 max-w-xs truncate block" title={remark}>
                         {remark}
                     </span>
                 ) : '-';
@@ -336,34 +397,12 @@ const OutwardTransactionReport = () => {
         }
     ], []);
 
-    const summary = useMemo(() => {
-        const uniqueTransactions = [...new Set(filteredData.map(item => item.transactionId))];
-        const uniqueTransactionData = uniqueTransactions.map(transactionId =>
-            filteredData.find(item => item.transactionId === transactionId)
-        );
-
-        const totalSerials = filteredData.filter(item => item.serialId).length;
-        const uniqueFranchises = [...new Set(filteredData.filter(item => item.franchiseName).map(item => item.franchiseName))];
-        const uniqueMerchants = [...new Set(filteredData.filter(item => item.merchantName).map(item => item.merchantName))];
-
-        const totalQuantity = uniqueTransactionData.reduce((sum, item) => sum + (item.quantity || 0), 0);
-
-        return {
-            totalTransactions: totalElements, // Use backend total
-            totalSerialNumbers: totalSerials,
-            totalFranchises: uniqueFranchises.length,
-            totalMerchants: uniqueMerchants.length,
-            totalQuantity: totalQuantity,
-        };
-    }, [filteredData, totalElements]);
-
     const table = useReactTable({
         data: filteredData,
         columns,
         getCoreRowModel: getCoreRowModel(),
         getFilteredRowModel: getFilteredRowModel(),
         getSortedRowModel: getSortedRowModel(),
-        getPaginationRowModel: getPaginationRowModel(),
         state: {
             globalFilter,
         },
@@ -375,10 +414,10 @@ const OutwardTransactionReport = () => {
         fetchTransactions(newPage);
     };
 
-    if (loading && data.length === 0) {
+    if (loading && expandedData.length === 0) {
         return (
             <div className="flex items-center justify-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+                <Loader2 className="animate-spin h-12 w-12 text-indigo-600" />
                 <span className="ml-3 text-gray-600">Loading outward transactions...</span>
             </div>
         );
@@ -430,7 +469,7 @@ const OutwardTransactionReport = () => {
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="text-blue-100 text-sm font-medium">Total Transactions</p>
-                            <p className="text-3xl font-bold">{summary.totalTransactions}</p>
+                            <p className="text-3xl font-bold">{summaryStats.totalTransactions}</p>
                         </div>
                         <TrendingUp className="w-8 h-8 text-blue-200" />
                     </div>
@@ -439,8 +478,8 @@ const OutwardTransactionReport = () => {
                 <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-xl p-6 text-white">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-emerald-100 text-sm font-medium">Total Quantity</p>
-                            <p className="text-3xl font-bold">{summary.totalQuantity}</p>
+                            <p className="text-emerald-100 text-sm font-medium">Total Quantity (Page)</p>
+                            <p className="text-3xl font-bold">{summaryStats.totalQuantity}</p>
                         </div>
                         <Package className="w-8 h-8 text-emerald-200" />
                     </div>
@@ -449,8 +488,8 @@ const OutwardTransactionReport = () => {
                 <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl p-6 text-white">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-purple-100 text-sm font-medium">Serial Numbers</p>
-                            <p className="text-3xl font-bold">{summary.totalSerialNumbers}</p>
+                            <p className="text-purple-100 text-sm font-medium">Serial Numbers (Page)</p>
+                            <p className="text-3xl font-bold">{summaryStats.totalSerialNumbers}</p>
                         </div>
                         <Package className="w-8 h-8 text-purple-200" />
                     </div>
@@ -459,8 +498,8 @@ const OutwardTransactionReport = () => {
                 <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl p-6 text-white">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-orange-100 text-sm font-medium">Customers</p>
-                            <p className="text-3xl font-bold">{summary.totalFranchises + summary.totalMerchants}</p>
+                            <p className="text-orange-100 text-sm font-medium">Customers (Page)</p>
+                            <p className="text-3xl font-bold">{summaryStats.totalFranchises + summaryStats.totalMerchants}</p>
                         </div>
                         <Users className="w-8 h-8 text-orange-200" />
                     </div>
@@ -503,24 +542,24 @@ const OutwardTransactionReport = () => {
                         onClick={() => fetchTransactions(0)}
                         className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
                     >
-                        Fetch
+                        Apply Filters
                     </button>
 
                     <button
                         onClick={clearFilters}
-                        className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium flex items-center gap-2"
+                        className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium flex items-center justify-center gap-2"
                     >
                         <X className="w-4 h-4" />
-                        Clear Filters
+                        Clear
                     </button>
                 </div>
             </div>
 
             {/* Table */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
                     <table className="w-full">
-                        <thead className="bg-gray-50 border-b border-gray-200">
+                        <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
                             {table.getHeaderGroups().map((headerGroup) => (
                                 <tr key={headerGroup.id}>
                                     {headerGroup.headers.map((header) => (
@@ -542,15 +581,32 @@ const OutwardTransactionReport = () => {
                             ))}
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                            {table.getRowModel().rows.map((row) => (
-                                <tr key={row.id} className="hover:bg-gray-50">
-                                    {row.getVisibleCells().map((cell) => (
-                                        <td key={cell.id} className="px-4 py-3 whitespace-nowrap text-sm">
-                                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                        </td>
-                                    ))}
+                            {loading ? (
+                                <tr>
+                                    <td colSpan={columns.length} className="px-4 py-8 text-center">
+                                        <div className="flex items-center justify-center">
+                                            <Loader2 className="h-6 w-6 animate-spin text-indigo-600 mr-2" />
+                                            <span className="text-gray-500">Loading...</span>
+                                        </div>
+                                    </td>
                                 </tr>
-                            ))}
+                            ) : filteredData.length === 0 ? (
+                                <tr>
+                                    <td colSpan={columns.length} className="px-4 py-8 text-center text-gray-500">
+                                        No results found
+                                    </td>
+                                </tr>
+                            ) : (
+                                table.getRowModel().rows.map((row) => (
+                                    <tr key={row.id} className="hover:bg-gray-50">
+                                        {row.getVisibleCells().map((cell) => (
+                                            <td key={cell.id} className="px-4 py-3 text-sm">
+                                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                            </td>
+                                        ))}
+                                    </tr>
+                                ))
+                            )}
                         </tbody>
                     </table>
                 </div>
@@ -558,13 +614,14 @@ const OutwardTransactionReport = () => {
                 {/* Pagination */}
                 <div className="bg-gray-50 px-6 py-3 flex items-center justify-between border-t border-gray-200">
                     <div className="text-sm text-gray-700">
-                        Showing page {pageIndex + 1} of {totalPages} ({totalElements} total entries)
+                        Showing page {pageIndex + 1} of {totalPages}
+                        <span className="ml-2">({filteredData.length} rows displayed from {totalElements} transactions)</span>
                     </div>
 
                     <div className="flex items-center gap-2">
                         <button
                             onClick={() => handlePageChange(pageIndex - 1)}
-                            disabled={pageIndex === 0}
+                            disabled={pageIndex === 0 || loading}
                             className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             Previous
@@ -576,26 +633,12 @@ const OutwardTransactionReport = () => {
 
                         <button
                             onClick={() => handlePageChange(pageIndex + 1)}
-                            disabled={pageIndex >= totalPages - 1}
+                            disabled={pageIndex >= totalPages - 1 || loading}
                             className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             Next
                         </button>
 
-                        <select
-                            value={pageSize}
-                            onChange={(e) => {
-                                setPageSize(Number(e.target.value));
-                                fetchTransactions(0);
-                            }}
-                            className="text-sm border border-gray-300 rounded px-2 py-1"
-                        >
-                            {[10, 20, 30, 40, 50].map((size) => (
-                                <option key={size} value={size}>
-                                    Show {size}
-                                </option>
-                            ))}
-                        </select>
                     </div>
                 </div>
             </div>
