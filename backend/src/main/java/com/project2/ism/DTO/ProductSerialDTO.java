@@ -78,7 +78,7 @@ public class ProductSerialDTO {
         // Link to return transaction
         existingSerial.setReturnTransaction(ret);
 
-        existingSerial.setFranchise(ret.getFranchise());
+        existingSerial.setFranchise(null);
         // Clear merchant (product is back from field)
         existingSerial.setMerchant(null);
 

@@ -27,11 +27,12 @@ const Select = ({ options, value, onChange, isSearchable, isClearable }) => {
 };
 
 // Input Field Component
-const InputField = ({ label, name, register, errors, required = false }) => {
+const InputField = ({ label, name, register, errors, required = false, isEditMode = false }) => {
+    const showRequired = required && !isEditMode;
     return (
         <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-                {label} {required && "*"}
+                {label} {showRequired && "*"}
             </label>
             <input
                 type="text"
@@ -45,27 +46,27 @@ const InputField = ({ label, name, register, errors, required = false }) => {
     );
 };
 
-const formSchema = z.object({
-    vendorId: z.number().min(1, "Select a vendor"),
-    productId: z.number().nullable().optional(),
+// const formSchema = z.object({
+//     vendorId: z.number().min(1, "Select a vendor"),
+//     productId: z.number().nullable().optional(),
 
-    // UAT
-    baseUrlUat: z.string().min(1, "Required"),
-    secretKeyUat: z.string().min(1, "Required"),
-    saltKeyUat: z.string().min(1, "Required"),
-    encryptDecryptKeyUat: z.string().min(1, "Required"),
-    userIdUat: z.string().min(1, "Required"),
+//     // UAT
+//     baseUrlUat: z.string().min(1, "Required"),
+//     secretKeyUat: z.string().min(1, "Required"),
+//     saltKeyUat: z.string().min(1, "Required"),
+//     encryptDecryptKeyUat: z.string().min(1, "Required"),
+//     userIdUat: z.string().min(1, "Required"),
 
-    // PROD
-    baseUrlProd: z.string().nullable().optional(),
-    secretKeyProd: z.string().nullable().optional(),
-    saltKeyProd: z.string().nullable().optional(),
-    encryptDecryptKeyProd: z.string().nullable().optional(),
-    userIdProd: z.string().nullable().optional(),
+//     // PROD
+//     baseUrlProd: z.string().nullable().optional(),
+//     secretKeyProd: z.string().nullable().optional(),
+//     saltKeyProd: z.string().nullable().optional(),
+//     encryptDecryptKeyProd: z.string().nullable().optional(),
+//     userIdProd: z.string().nullable().optional(),
 
-    activeEnvironment: z.enum(["UAT", "PROD"]),
-    isActive: z.boolean()
-});
+//     activeEnvironment: z.enum(["UAT", "PROD"]),
+//     isActive: z.boolean()
+// });
 
 const defaultForm = {
     vendorId: null,
@@ -87,11 +88,58 @@ const defaultForm = {
     isActive: true
 };
 
-const PaymentVendorCredentialsForm = ({ isOpen = true, onClose = () => { }, defaultValues = null, onSubmit = (data) => console.log(data) }) => {
+const PaymentVendorCredentialsForm = ({ isOpen = true, onClose = () => { }, defaultValues = null, onSubmit }) => {
 
     const [vendors, setVendors] = useState([]);
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(false);
+
+    const isEditMode = !!defaultValues;
+
+    // Create conditional schema
+    const formSchema = isEditMode
+        ? z.object({
+            vendorId: z.number().min(1, "Select a vendor"),
+            productId: z.number().nullable().optional(),
+
+            // UAT - optional in edit mode
+            baseUrlUat: z.string().optional(),
+            secretKeyUat: z.string().optional(),
+            saltKeyUat: z.string().optional(),
+            encryptDecryptKeyUat: z.string().optional(),
+            userIdUat: z.string().optional(),
+
+            // PROD - optional
+            baseUrlProd: z.string().nullable().optional(),
+            secretKeyProd: z.string().nullable().optional(),
+            saltKeyProd: z.string().nullable().optional(),
+            encryptDecryptKeyProd: z.string().nullable().optional(),
+            userIdProd: z.string().nullable().optional(),
+
+            activeEnvironment: z.enum(["UAT", "PROD"]),
+            isActive: z.boolean()
+        })
+        : z.object({
+            vendorId: z.number().min(1, "Select a vendor"),
+            productId: z.number().nullable().optional(),
+
+            // UAT - required in create mode
+            baseUrlUat: z.string().min(1, "Required"),
+            secretKeyUat: z.string().min(1, "Required"),
+            saltKeyUat: z.string().min(1, "Required"),
+            encryptDecryptKeyUat: z.string().min(1, "Required"),
+            userIdUat: z.string().min(1, "Required"),
+
+            // PROD - optional
+            baseUrlProd: z.string().nullable().optional(),
+            secretKeyProd: z.string().nullable().optional(),
+            saltKeyProd: z.string().nullable().optional(),
+            encryptDecryptKeyProd: z.string().nullable().optional(),
+            userIdProd: z.string().nullable().optional(),
+
+            activeEnvironment: z.enum(["UAT", "PROD"]),
+            isActive: z.boolean()
+        });
 
     const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm({
         resolver: zodResolver(formSchema),
@@ -222,11 +270,11 @@ const PaymentVendorCredentialsForm = ({ isOpen = true, onClose = () => { }, defa
                         <p className="font-semibold text-gray-700 mb-3">UAT / Sandbox Credentials</p>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <InputField label="Base URL" name="baseUrlUat" register={register} errors={errors} required />
-                            <InputField label="Secret Key" name="secretKeyUat" register={register} errors={errors} required />
-                            <InputField label="Salt Key" name="saltKeyUat" register={register} errors={errors} required />
-                            <InputField label="Encrypt/Decrypt Key" name="encryptDecryptKeyUat" register={register} errors={errors} required />
-                            <InputField label="User ID" name="userIdUat" register={register} errors={errors} required />
+                            <InputField label="Base URL" name="baseUrlUat" register={register} errors={errors} required isEditMode />
+                            <InputField label="Secret Key" name="secretKeyUat" register={register} errors={errors} required isEditMode />
+                            <InputField label="Salt Key" name="saltKeyUat" register={register} errors={errors} required isEditMode />
+                            <InputField label="Encrypt/Decrypt Key" name="encryptDecryptKeyUat" register={register} errors={errors} required isEditMode />
+                            <InputField label="User ID" name="userIdUat" register={register} errors={errors} required isEditMode  />
                         </div>
                     </div>
 

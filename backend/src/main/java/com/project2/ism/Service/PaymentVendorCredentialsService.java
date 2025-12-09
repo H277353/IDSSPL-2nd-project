@@ -88,18 +88,41 @@ public class PaymentVendorCredentialsService {
 
     private void mapDtoToEntity(VendorCredentialsRequestDTO dto, PaymentVendorCredentials vc) {
 
-        vc.setBaseUrlUat(dto.getBaseUrlUat());
-        vc.setSecretKeyUat(dto.getSecretKeyUat());
-        vc.setSaltKeyUat(dto.getSaltKeyUat());
-        vc.setEncryptDecryptKeyUat(dto.getEncryptDecryptKeyUat());
-        vc.setUserIdUat(dto.getUserIdUat());
+        // UAT credentials - only update if provided
+        if (dto.getBaseUrlUat() != null && !dto.getBaseUrlUat().isEmpty()) {
+            vc.setBaseUrlUat(dto.getBaseUrlUat());
+        }
+        if (dto.getSecretKeyUat() != null && !dto.getSecretKeyUat().isEmpty()) {
+            vc.setSecretKeyUat(dto.getSecretKeyUat());
+        }
+        if (dto.getSaltKeyUat() != null && !dto.getSaltKeyUat().isEmpty()) {
+            vc.setSaltKeyUat(dto.getSaltKeyUat());
+        }
+        if (dto.getEncryptDecryptKeyUat() != null && !dto.getEncryptDecryptKeyUat().isEmpty()) {
+            vc.setEncryptDecryptKeyUat(dto.getEncryptDecryptKeyUat());
+        }
+        if (dto.getUserIdUat() != null && !dto.getUserIdUat().isEmpty()) {
+            vc.setUserIdUat(dto.getUserIdUat());
+        }
 
-        vc.setBaseUrlProd(dto.getBaseUrlProd());
-        vc.setSecretKeyProd(dto.getSecretKeyProd());
-        vc.setSaltKeyProd(dto.getSaltKeyProd());
-        vc.setEncryptDecryptKeyProd(dto.getEncryptDecryptKeyProd());
-        vc.setUserIdProd(dto.getUserIdProd());
+        // PROD credentials - only update if provided
+        if (dto.getBaseUrlProd() != null && !dto.getBaseUrlProd().isEmpty()) {
+            vc.setBaseUrlProd(dto.getBaseUrlProd());
+        }
+        if (dto.getSecretKeyProd() != null && !dto.getSecretKeyProd().isEmpty()) {
+            vc.setSecretKeyProd(dto.getSecretKeyProd());
+        }
+        if (dto.getSaltKeyProd() != null && !dto.getSaltKeyProd().isEmpty()) {
+            vc.setSaltKeyProd(dto.getSaltKeyProd());
+        }
+        if (dto.getEncryptDecryptKeyProd() != null && !dto.getEncryptDecryptKeyProd().isEmpty()) {
+            vc.setEncryptDecryptKeyProd(dto.getEncryptDecryptKeyProd());
+        }
+        if (dto.getUserIdProd() != null && !dto.getUserIdProd().isEmpty()) {
+            vc.setUserIdProd(dto.getUserIdProd());
+        }
 
+        // Always update these fields
         vc.setActiveEnvironment(dto.getActiveEnvironment());
         vc.setIsActive(dto.getIsActive());
     }

@@ -841,7 +841,7 @@ const OutwardFormModal = ({ isOpen, onClose, onSubmit, editData = null }) => {
                     type="date"
                     {...register('expectedDelivery')}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-gray-400 transition-colors"
-                    min={new Date().toISOString().split('T')[0]}
+                    //min={new Date().toISOString().split('T')[0]}
                     disabled={isSubmitting}
                   />
                 </div>
