@@ -14,7 +14,7 @@ import java.util.*;
 @Service
 public class ExcelParser {
 
-    private static final DateTimeFormatter[] DATE_PATTERNS = new DateTimeFormatter[]{
+    public static final DateTimeFormatter[] DATE_PATTERNS = new DateTimeFormatter[]{
             DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"),
             DateTimeFormatter.ofPattern("dd/MM/uuuu HH:mm:ss"),
             DateTimeFormatter.ofPattern("dd/MM/yy HH:mm:ss"),
