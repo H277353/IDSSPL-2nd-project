@@ -24,14 +24,16 @@ public class UploadRecordService {
     private final VendorRepository vendorRepository;
     private final ProductRepository productRepository;
     private final ExcelParser excelParser;
+    private final CsvParser csvParser;
 
 
-    public UploadRecordService(TransactionRepository tr, UploadRecordRepository ur, VendorRepository vendorRepository, ProductRepository productRepository, ExcelParser excelParser) {
+    public UploadRecordService(TransactionRepository tr, UploadRecordRepository ur, VendorRepository vendorRepository, ProductRepository productRepository, ExcelParser excelParser, CsvParser csvParser) {
         this.transactionRepository = tr;
         this.uploadRecordRepository = ur;
         this.vendorRepository = vendorRepository;
         this.productRepository = productRepository;
         this.excelParser = excelParser;
+        this.csvParser = csvParser;
     }
 
     public String handleFileUpload(Long vendorId, Long productId, MultipartFile file) throws Exception {
@@ -46,7 +48,16 @@ public class UploadRecordService {
         rec.setFileName(file.getOriginalFilename());
 
 
-        List<VendorTransactions> txs = excelParser.parse(file.getInputStream());
+        String name = file.getOriginalFilename().toLowerCase();
+        List<VendorTransactions> txs;
+
+        if (name.endsWith(".csv")) {
+            txs = csvParser.parse(file.getInputStream());
+        } else if (name.endsWith(".xlsx") || name.endsWith(".xls")) {
+            txs = excelParser.parse(file.getInputStream());
+        } else {
+            throw new IllegalArgumentException("Unsupported file type. Upload CSV or Excel only.");
+        }
         transactionRepository.saveAll(txs);
         uploadRecordRepository.save(rec);
         return "Success";
